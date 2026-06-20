@@ -1,0 +1,49 @@
+{
+  "patient_id": "",
+
+  "devices": [
+
+    {
+
+      "device_name": "",
+
+      "canonical_device_name": "",
+
+      "device_size": "",
+
+      "implant_location": "",
+
+      "implant_date": "",
+
+      "implant_status": "",
+
+      "supporting_text": "",
+
+      "cui": "",
+
+      "preferred_name": "",
+
+      "semantic_type": "",
+
+      "snomed_id": "",
+
+      "PrimaryDI": "",
+
+      "submissionNumber": "",
+
+      "manufacturer": "",
+
+      "brand_name": "",
+
+      "device_description": "",
+
+      "MRISafetyStatus": "",
+
+      "resolve_method": "",
+
+      "similarity_score": 0
+
+    }
+
+  ]
+}
