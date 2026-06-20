@@ -33,10 +33,7 @@ if st.button("🔍 시스템 가동 및 추적"):
         st.success("환자 데이터 정제 완료")
         devices = result.get("devices", [])
 
-
-
         col_left, col_right = st.columns([1.1, 0.9])
-
 
         with col_left:
             st.subheader("📋 Device Summary")
@@ -89,18 +86,11 @@ if st.button("🔍 시스템 가동 및 추적"):
                         .tl-container {{ background: #F8FAFC; padding: 20px; border-radius: 12px; border: 1px solid #E2E8F0; height: 320px; font-family: system-ui; position: relative; }}
                         .tl-axis {{ position: absolute; top: 120px; left: 10%; right: 10%; height: 5px; background: #64748B; border-radius: 4px; }}
                         .tl-node {{ position: absolute; top: 110px; transform: translateX(-50%); cursor: pointer; }}
-                        
-                        /* 공통 노드 스타일 */
                         .tl-dot {{ width: 18px; height: 18px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.15); transition: 0.2s; }}
-                        
-                        /* 🔵 CURRENT 상태: 파란색 노드 스타일 정의 */
                         .tl-dot.current {{ background: #2563EB; }}
                         .tl-node:hover .tl-dot.current {{ transform: scale(1.3); background: #1D4ED8; }}
-                        
-                        /* 🔴 NOT CURRENT 상태: 빨간색 노드 스타일 정의 */
                         .tl-dot.not-current {{ background: #EF4444; }}
                         .tl-node:hover .tl-dot.not-current {{ transform: scale(1.3); background: #DC2626; }}
-                        
                         .tl-tooltip {{ visibility: hidden; width: 250px; background: #0F172A; color: white; border-radius: 8px; padding: 10px; position: absolute; z-index: 100; bottom: 30px; left: 50%; transform: translateX(-50%); opacity: 0; transition: 0.2s; font-size: 11px; line-height: 1.4; box-shadow: 0 4px 15px rgba(0,0,0,0.2); pointer-events: none; }}
                         .tl-tooltip::after {{ content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #0F172A transparent transparent transparent; }}
                         .tl-node:hover .tl-tooltip {{ visibility: visible; opacity: 1; transform: translateX(-50%) translateY(-5px); }}
@@ -136,5 +126,16 @@ if st.button("🔍 시스템 가동 및 추적"):
         with col_right:
             st.subheader("🗺️ Live Anatomy Bodymap")
             
-            img_path = r"C:\Users\신효원\Desktop\생성형AI수업\DATA\implant_dashboard\assets\body_front.png"
+
+            LOCAL_IMG_PATH = Path(r"C:\Users\신효원\Desktop\생성형AI수업\DATA\implant_dashboard\assets\body_front.png")
+            RELATIVE_IMG_PATH = Path(__file__).parent / "assets" / "body_front.png"
+            CURRENT_DIR_IMG_PATH = Path(__file__).parent / "body_front.png"
+            
+            if LOCAL_IMG_PATH.exists():
+                img_path = str(LOCAL_IMG_PATH)
+            elif RELATIVE_IMG_PATH.exists():
+                img_path = str(RELATIVE_IMG_PATH)
+            else:
+                img_path = str(CURRENT_DIR_IMG_PATH)
+                
             render_bodymap(devices, img_path)

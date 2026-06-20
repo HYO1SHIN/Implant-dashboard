@@ -4,7 +4,6 @@ from rapidfuzz import fuzz, process
 
 
 LOCAL_DATA_DIR = Path(r"C:\Users\신효원\Desktop\생성형AI수업\DATA\implant_dashboard\data")
-# 2. 클라우드 배포용 상대 경로 예비 탐색 정의
 RELATIVE_DATA_DIR = Path(__file__).parent / "data"
 CURRENT_DIR = Path(__file__).parent
 
@@ -21,12 +20,12 @@ chunk_list = []
 for i in range(15):
     chunk_file = DATA_DIR / f"master_part_{i}.csv"
     if chunk_file.exists():
-        chunk_df = pd.read_csv(chunk_file, dtype=str, low_memory=False)
+        chunk_df = pd.read_csv(str(chunk_file), dtype=str, low_memory=False)
         chunk_list.append(chunk_df)
     else:
         alt_chunk_file = CURRENT_DIR / f"master_part_{i}.csv"
         if alt_chunk_file.exists():
-            chunk_df = pd.read_csv(alt_chunk_file, dtype=str, low_memory=False)
+            chunk_df = pd.read_csv(str(alt_chunk_file), dtype=str, low_memory=False)
             chunk_list.append(chunk_df)
 
 if chunk_list:
@@ -35,7 +34,7 @@ if chunk_list:
 else:
     ORIGINAL_CSV = DATA_DIR / "implantable_device_master_cui.csv"
     if ORIGINAL_CSV.exists():
-        device_db = pd.read_csv(ORIGINAL_CSV, dtype=str, low_memory=False)
+        device_db = pd.read_csv(str(ORIGINAL_CSV), dtype=str, low_memory=False)
         print(f"✅ 원본 파일 직접 로드 성공! 행(Rows): {len(device_db)}")
     else:
         raise FileNotFoundError(
@@ -135,8 +134,7 @@ def resolve_device_by_product(device_json):
 
                 matched_text, score = result[0], result[1]
                 if score > best_score:
-                    box = product_lookup.get(matched_text)
-                    best_row = box
+                    best_row = product_lookup.get(matched_text)
                     best_score = score
                     best_method = "PRODUCTCODE"
 
@@ -149,8 +147,7 @@ def resolve_device_by_product(device_json):
 
                 matched_text, score = result[0], result[1]
                 if score > best_score:
-                    box = brand_lookup.get(matched_text)
-                    best_row = box
+                    best_row = brand_lookup.get(matched_text)
                     best_score = score
                     best_method = "BRAND"
 
@@ -163,8 +160,7 @@ def resolve_device_by_product(device_json):
 
                 matched_text, score = result[0], result[1]
                 if score > best_score:
-                    box = normalized_lookup.get(matched_text)
-                    best_row = box
+                    best_row = normalized_lookup.get(matched_text)
                     best_score = score
                     best_method = "NORMALIZED"
 
