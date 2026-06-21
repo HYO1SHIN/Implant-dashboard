@@ -1,162 +1,120 @@
-# LLM-Powered Implant-Dashboard
-LLM-Powered Implantable Medical Device Registry and Visualization Platform (Graduate Project)
+# <p align="center">🩺 ImplantAtlas</p>
+<p align="center">
+  <strong>LLM-Powered Implantable Medical Device Registry & Visualization Platform</strong><br>
+  <em>Graduate Project | From Unstructured Clinical Notes to Interactive Device Intelligence</em>
+</p>
 
-ImplantAtlas
-From Unstructured Clinical Notes to Interactive Implant Device Intelligence
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit">
+  <img src="https://img.shields.io/badge/Plotly-3F4F75?style=for-the-badge&logo=plotly&logoColor=white" alt="Plotly">
+  <img src="https://img.shields.io/badge/Groq_Cloud_API-F34F29?style=for-the-badge&logo=git&logoColor=white" alt="Groq">
+</p>
 
-ImplantAtlas is an AI-powered clinical decision support platform that automatically extracts implantable medical device information from unstructured electronic medical records (EMR), enriches the extracted entities using UMLS and FDA GUDID knowledge bases, and transforms them into an interactive Device Registry, Timeline, and Body Map visualization.
+---
 
-The system is designed to help clinicians quickly understand a patient's complete implant history without manually reviewing years of fragmented clinical documentation.
+## 🌐 Live Demo
 
-Key Features
-LLM-based Device Extraction
+🚀 **Experience the interactive dashboard live right now:** 👉 **[https://implant-dashboard-scx5vbr9e7ndaw5jbaukye.streamlit.app/](https://implant-dashboard-scx5vbr9e7ndaw5jbaukye.streamlit.app/)**
 
-Automatically identifies implantable medical devices from free-text clinical notes and extracts:
+---
 
-Device Name
-Canonical Device Name
-Implant Date
-Implant Status (CURRENT / NOT CURRENT)
-Implant Location
-Supporting Evidence
-Longitudinal Device Tracking
+## 💡 Clinical Motivation
 
-Tracks both historical and currently implanted devices.
+Modern healthcare systems contain vast amounts of implant-related information hidden within unstructured, fragmented clinical notes. Manual review of years of documentation compromises clinical workflow efficiency and patient safety. 
 
-Supports:
+`<ImplantAtlas>` solves this by transforming fragmented medical prose into structured, actionable **Device Intelligence**, enabling clinicians to grasp a patient's complete implant history within seconds.
 
-Device replacement history
-Explanted devices
-Lifetime implant chronology
-Medical Ontology Integration
+---
 
-Maps extracted devices to UMLS concepts and retrieves:
+## ✨ Key Features
 
-CUI
-Preferred Name
-Semantic Type
-Synonyms
-SNOMED CT references
-FDA GUDID Enrichment
+### 🧠 1. LLM-based Device Extraction
+Automatically parses free-text clinical notes to isolate genuine implantable device entities and extracts:
+* `Device Name` & `Canonical Generic Concepts`
+* `Implant / Explant Dates`
+* `Anatomical Implant Location`
+* `Supporting Evidence (provenance)`
 
-Links extracted devices with FDA GUDID records using ontology-guided fuzzy matching.
+### ⏳ 2. Longitudinal Lifecycle Tracking
+Maintains strict chronological fidelity for patient history.
+* Maps complete device lineage (<kbd>Implantation</kbd> ➡️ <kbd>Replacement</kbd> ➡️ <kbd>Removal</kbd>).
+* Tracks active (`CURRENT`) vs explanted (`NOT CURRENT`) device states.
+* Enforces a *Device Lifecycle Merging Rule* to handle continuous historical timelines without entity duplication.
 
-Provides:
+### 📚 3. Medical Ontology Integration (UMLS)
+Standardizes free-text terminology by linking extracted devices to the **Unified Medical Language System (UMLS)**:
+* Retrieves Unique Concept Unique Identifiers (<kbd>CUI</kbd>) and Preferred Names.
+* Filters via Semantic Types (e.g., *Medical Device*, *Manufactured Object*).
+* Cross-references with **SNOMED CT** codes for global interoperability.
 
-Manufacturer
-Brand Name
-Device Description
-MRI Safety Status
-Submission Information
-LLM Reviewer Validation
+### 🔍 4. FDA GUDID Enrichment
+Links standardized entities with the **FDA Global Unique Device Identification Database (GUDID)** via ontology-guided fuzzy matching to uncover critical hardware specifications:
+* Manufacturer & Brand Details
+* **🧲 MRI Safety Status** (Essential for pre-imaging screening)
+* FDA Submission & Pre-market Approval Records
 
-Applies an LLM-as-a-Judge framework to verify extraction quality and improve reliability.
+### ⚖️ 5. LLM-as-a-Judge Validation Framework
+Utilizes a secondary LLM pipeline step acting as a clinical reviewer to audit extraction quality:
+* Eliminates clinical hallucinations.
+* Aggressively filters out **Family History** (e.g., *Mother's pacemaker*) and **Future/Planned Procedures**.
 
-The reviewer checks:
+### 📊 6. Interactive Clinical Dashboard
+Generates a highly intuitive, multi-dimensional visualization layer:
+* **📋 Device Summary Table:** Quick registry of active and historical implants.
+* **📈 Lifetime Device Timeline:** Interactive tracking of hardware chronologies.
+* **🧍 Anatomical Body Map:** Scatter-mapped 2D coordinate node engine utilizing 19 predefined anatomical standard zones with hover-based metadata exploration.
 
-Missing devices
-Hallucinated devices
-Implant dates
-Implant status consistency
-Interactive Clinical Dashboard
+---
 
-Generates an intuitive visualization layer including:
+## 🛠️ Technology Stack
 
-Device Summary Table
-Lifetime Device Timeline
-Anatomical Body Map
-Hover-based Metadata Exploration
-Technology Stack
-Python
-Ollama
-Qwen 2.5
-Streamlit
-Plotly
-UMLS API
-FDA GUDID
-Fuzzy Matching
-LLM-as-a-Judge
-Clinical Motivation
+| Category | Technologies Used |
+| :--- | :--- |
+| **Backend & Core** | `Python` |
+| **Frontend UI / UX** | `Streamlit` |
+| **Visualization Engine** | `Plotly Engine` |
+| **LLM Infrastructure** | `Groq Cloud API` / `Ollama Option` |
+| **AI Foundations** | `Llama 3.3 (70B-Versatile)` / `Llama 3.1 (8B-Instant)` / `Qwen 2.5` |
+| **Knowledge Bases** | `UMLS Terminology API` / `FDA GUDID (Fuzzy Match Processor)` |
+| **Architecture Framework** | `LLM-as-a-Judge Validation` |
 
-Modern healthcare systems contain vast amounts of implant-related information hidden within unstructured clinical notes.
+---
 
-ImplantAtlas transforms fragmented documentation into structured device intelligence, enabling faster patient understanding, improved workflow efficiency, and enhanced patient safety.
+## 🔄 System Architecture Flow
 
-ImplantAtlas
-비정형 의무기록을 시각화된 이식형 의료기기 정보로 변환하는 AI 플랫폼
+```text
+[Unstructured Clinical Note]
+            │
+            ▼
+[Step 1: Raw LLM Extraction] ────► [Step 2: LLM Reviewer Audit] (Filters Family History)
+                                                │
+                                                ▼
+[Step 4: FDA GUDID Match] ◄──── [Step 3: UMLS Ontology Mapping] (Resolves CUIs)
+            │
+            ▼
+[Interactive Dashboard Layer] ───► (Summary Table / Timeline / 19-Zone Body Map)
+```
 
-ImplantAtlas는 전자의무기록(EMR)에 기록된 비정형 임상 텍스트로부터 이식형 의료기기 정보를 자동 추출하고, UMLS 및 FDA GUDID 지식베이스와 연계하여 구조화된 Device Registry, Timeline, Body Map을 생성하는 AI 기반 임상 의사결정 지원 플랫폼입니다.
+## 🇰🇷 국문 요약 (Project Overview in Korean)
 
-의료진이 수년간 누적된 기록을 직접 검토하지 않고도 환자의 전체 이식형 의료기기 이력을 빠르게 파악할 수 있도록 설계되었습니다.
+### 📢 비정형 의무기록을 시각화된 이식형 의료기기 정보로 변환하는 임상 decision support AI 플랫폼
 
-주요 기능
-LLM 기반 Device 추출
+**ImplantAtlas**는 병원 전자의무기록(EMR) 내에 정형화되지 않은 상태로 흩어져 있는 임상 텍스트(Clinical Notes)로부터 환자의 체내 삽입형 의료기기(Implantable Medical Devices) 정보를 자동 추출하는 대규모 언어 모델(LLM) 기반의 임상 의사결정 지원 플랫폼입니다. 
 
-비정형 Clinical Note로부터 다음 정보를 자동 추출합니다.
+추출된 데이터는 글로벌 의료 온톨로지 표준인 **UMLS(Unified Medical Language System)** 및 미국 **FDA GUDID(Global Unique Device Identification Database)** 지식베이스와 실시간으로 연계 및 확장되어, 의료진에게 구조화된 **Device Registry(기기 이력 현황), Timeline(생애주기 흐름), 19개 구역 표준 Anatomical Body Map(인체 매핑)** 시각화 레이어를 즉각적으로 제공합니다.
 
-Device Name
-Canonical Device Name
-Implant Date
-Implant Status (CURRENT / NOT CURRENT)
-Implant Location
-Supporting Evidence
-Lifetime Device Tracking
+---
 
-과거 및 현재 Device를 모두 추적합니다.
+### 🎯 핵심 아키텍처 및 기능
 
-지원 기능:
+* **LLM 기반 임상 데이터 정밀 추출:** 비정형 의무기록을 실시간 파싱하여 기기명(Device Name), 상세 규격(Size), 이식일(Implant Date) 뿐만 아니라 기기의 현재 활성화 여부(`CURRENT` / `NOT CURRENT`) 및 데이터 신뢰성을 증명할 임상적 근거 문맥(`supporting_text`)을 정밀하게 추출합니다.
+* **하드웨어 생애주기 추적 및 의미론적 병합 (Lifecycle Merging):** 환자의 장기적인 타임라인 상에서 발생하는 기기의 이식, 교체(Replacement), 제거(Removal) 이력을 시간 순으로 추적합니다. 동일한 기기 슬롯에서 발생하는 다발성 이벤트를 하나의 역사로 융합 처리하여 데이터의 중복 생성을 방지합니다.
+* **임상 루프 검증 시스템 (LLM-as-a-Judge):** 1단계 추출 결과를 2단계 LLM Reviewer 가드레일을 통해 재검증함으로써 인공지능의 불완전한 환각(Hallucination) 현상을 원천 차단합니다. 특히 환자 본인의 이력이 아닌 **가족력**(*어머니의 인공심박동기 이력 등*)이나 **미래 수술 계획** 문장을 완벽하게 식별하여 필터링합니다.
+* **다중 지식베이스 맵핑 및 환자 안전 시각화:** 추출된 텍스트를 UMLS 표준 개념 ID(<kbd>CUI</kbd>) 및 SNOMED CT 코드로 표준화하고, FDA GUDID 데이터와의 지식 그래프 통합(Fuzzy Matching)을 수행합니다. 이를 통해 임상 현장에서 가장 치명적인 안전 가이드인 **🧲 MRI 촬영 안전성 정보(MRI Safety Status)**를 대시보드 상에서 1초 만에 직관적으로 식별할 수 있도록 지원합니다.
 
-Device 교체 이력
-제거된 Device 관리
-환자 생애주기 기반 Device Timeline
-의료 온톨로지 연계
+---
 
-추출된 Device를 UMLS 개념과 연결하여 다음 정보를 제공합니다.
+### 🚀 프로젝트의 의의
 
-CUI
-Preferred Name
-Semantic Type
-Synonym
-SNOMED CT
-FDA GUDID 메타데이터 결합
-
-Ontology 기반 Fuzzy Matching을 이용하여 FDA GUDID 데이터와 연결합니다.
-
-제공 정보:
-
-제조사
-제품명
-Device Description
-MRI Safety Status
-Submission 정보
-LLM Reviewer 검증
-
-LLM-as-a-Judge 방식을 적용하여 추출 결과를 재검증합니다.
-
-검증 항목:
-
-누락 Device
-잘못 추출된 Device
-Implant Date
-Implant Status
-Interactive Dashboard
-
-다음과 같은 시각화 기능을 제공합니다.
-
-Device Summary Table
-Lifetime Timeline
-Anatomical Body Map
-Hover 기반 상세 정보 조회
-기술 스택
-Python
-Ollama
-Qwen 2.5
-Streamlit
-Plotly
-UMLS API
-FDA GUDID
-Fuzzy Matching
-LLM-as-a-Judge
-프로젝트 의의
-
-ImplantAtlas는 의료기기 정보가 흩어져 있는 비정형 임상 기록을 구조화된 Device Intelligence로 변환하여, 의료진의 정보 탐색 시간을 줄이고 환자 안전성을 향상시키는 것을 목표로 합니다.
+환자의 수많은 비정형 임상 기록 속에 파편화되어 숨겨져 있던 의료기기 정보를 일목요연한 **Device Intelligence**로 자율 변환함으로써, 의료진의 기록 탐색 및 검토 시간을 획기적으로 단축시킵니다. 나아가 교차 검증된 정확한 이식물 족보를 제공함으로써 환자 인계 및 응급 처치, MRI 영상 검사 시의 임상적 오류를 방지하고 환자의 안전성을 극대화하는 것에 본 프로젝트의 핵심 의의가 있습니다.
