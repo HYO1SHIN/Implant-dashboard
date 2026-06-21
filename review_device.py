@@ -3,7 +3,7 @@ import os
 import streamlit as st
 from groq import Groq  
 
-MODEL_NAME = "llama3-8b-8192"
+MODEL_NAME = "llama-3.1-8b-instant"
 
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")

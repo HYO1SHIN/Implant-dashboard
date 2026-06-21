@@ -60,7 +60,7 @@ def extract_device_raw(chunk_text):
 
     try:
         completion = client.chat.completions.create(
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",  #  [패치] Groq 최신형 모델명으로 변경
             messages=[{"role": "user", "content": prompt}],
             temperature=0.0,
             response_format={"type": "json_object"}
