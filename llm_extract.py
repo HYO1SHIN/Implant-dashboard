@@ -45,24 +45,19 @@ def chunk_text(text, max_chars=1200):
 
 
 def extract_device_raw(chunk_text):
-    """
-    Groq 클라우드의 명품 Qwen 모델을 호출합니다.
-    에러 발생 시 화면에 원인을 즉시 강제 출력합니다.
-    """
+
     prompt_path = BASE_DIR / "prompt_extract.txt"
     with open(prompt_path, encoding="utf-8") as f:
         prompt_template = f.read()
 
     prompt = prompt_template.replace("{TEXT}", chunk_text)
 
-    # Groq JSON 모드 필수 키워드 보장
     if "json" not in prompt.lower():
         prompt += "\n\nReturn the output in a valid JSON object format."
 
     try:
-        # [교정] Groq 공식 표준 모델명인 qwen-2.5-coder-32b 로 안정성을 확보합니다.
         completion = client.chat.completions.create(
-            model="qwen-2.5-coder-32b",  
+            model="llama-3.3-70b-versatile",  
             messages=[{"role": "user", "content": prompt}],
             temperature=0.0,
             max_tokens=3000,
@@ -70,7 +65,6 @@ def extract_device_raw(chunk_text):
         )
         result = completion.choices[0].message.content.strip()
     except Exception as e:
-        # 🚨 침묵하지 않고 Streamlit UI 화면에 에러 원인을 직접 살포합니다.
         st.error(f"🚨 [Step 1 원인 분석] Groq API 호출 실패: {e}")
         result = '{"devices": []}'
 
@@ -112,7 +106,6 @@ def process_single_chunk(chunk):
 
     chunk_filtered_devices = []
     
-    # 안전한 리스트 바인딩
     if not schema_json or not isinstance(schema_json, dict):
         schema_json = {"devices": []}
         

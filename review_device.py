@@ -3,8 +3,7 @@ import os
 import streamlit as st
 from groq import Groq  
 
-# [교정] 동일하게 Groq 표준 Qwen 모델명으로 동기화합니다.
-MODEL_NAME = "qwen-2.5-coder-32b"
+MODEL_NAME = "llama-3.3-70b-versatile"
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 if not GROQ_API_KEY:
