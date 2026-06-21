@@ -3,7 +3,7 @@ import re
 import os
 from pathlib import Path
 import streamlit as st
-from groq import Groq
+from groq import Groq  # 외부 서버 연결을 위한 선언
 
 from schema_loader import apply_schema
 from umls_resolver import search_umls
@@ -24,6 +24,7 @@ client = Groq(api_key=GROQ_API_KEY)
 
 
 def chunk_text(text, max_chars=1200):
+    """의무기록의 단락(줄바꿈)을 기준선으로 삼아 안전한 크기로 분할합니다."""
     paragraphs = text.split('\n')
     chunks = []
     current_chunk = []
@@ -45,67 +46,60 @@ def chunk_text(text, max_chars=1200):
 
 
 def extract_device_raw(chunk_text):
-
+    """
+    [Qwen 엔진 복구] Groq 클라우드의 대형 Qwen 모델을 사용하여
+    기존 로컬 환경과 동일한 고품질 의료 데이터를 실시간 추출합니다.
+    """
     prompt_path = BASE_DIR / "prompt_extract.txt"
     with open(prompt_path, encoding="utf-8") as f:
         prompt_template = f.read()
 
     prompt = prompt_template.replace("{TEXT}", chunk_text)
 
-    if "json" not in prompt.lower():
-        prompt += "\n\nReturn the output in a valid JSON object format."
-
     try:
-
+        # 모델명을 Groq 공식 최신 Qwen 모델로 매핑합니다.
+        # 데이터 유실을 막기 위해 max_tokens를 넉넉히 제공합니다.
         completion = client.chat.completions.create(
-            model="llama-3.1-8b-instant",  
+            model="qwen-2.5-32b",  
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.1,          
-            max_tokens=3000,          
+            temperature=0.0,
+            max_tokens=3000,
             response_format={"type": "json_object"}
         )
         result = completion.choices[0].message.content.strip()
     except Exception as e:
-        st.error(f"Groq API 호출 중 오류 발생: {e}")
+        print(f"[서버 AI 호출 에러] {e}")
         result = '{"devices": []}'
 
+    if not result.endswith("}") and not result.endswith("```"):
+        result += "\n}"
     return result
 
 
 def extract_json(text):
-    if not text or not isinstance(text, str):
-        return {"devices": []}
-        
     try:
-        cleaned = re.sub(r"\x60{3}json|\x60{3}", "", text).strip()
-        start = cleaned.find("{")
-        end = cleaned.rfind("}")
-        
-        if start != -1 and end != -1:
-            json_candidate = cleaned[start:end+1]
-            return json.loads(json_candidate)
-            
-        json_match = re.search(r"\{[\s\S]*\}", cleaned)
+        cleaned_text = re.sub(r"\x60{3}json|\x60{3}", "", text).strip()
+        json_match = re.search(r"\{[\s\S]*\}", cleaned_text)
         if json_match:
             return json.loads(json_match.group())
-            
-        raise ValueError("구조적 결함")
+        else:
+            raise ValueError("JSON 구조 결여")
     except Exception as e:
-        print(f"[강제 파싱 디버그] 파싱 우회 작동: {e}")
+        print(f"[디버그] 조각 JSON 파싱 우회: {e}")
         return {"devices": []}
 
 
 def process_single_chunk(chunk):
+    """하나의 조각에 대해 Step 1부터 Step 5까지 완벽히 독립적으로 수행합니다."""
     raw_result = extract_device_raw(chunk)
     
     try:
-        reviewed_result = review_device(chunk, extract_json(raw_result))
+        reviewed_result = review_device(chunk, raw_result)
         if isinstance(reviewed_result, dict):
             chunk_json = reviewed_result
         else:
             chunk_json = extract_json(reviewed_result)
-    except Exception as e:
-        print(f"[디버그] 리뷰 단계 우회: {e}")
+    except:
         chunk_json = extract_json(raw_result)
 
     try:
@@ -113,22 +107,11 @@ def process_single_chunk(chunk):
     except:
         schema_json = chunk_json
 
-    if not schema_json or not isinstance(schema_json, dict):
-        schema_json = {"devices": []}
-
     chunk_filtered_devices = []
-    
-    devices_list = schema_json.get("devices") or schema_json.get("Devices") or schema_json.get("DEVICE") or []
-    if isinstance(devices_list, dict):  
-        devices_list = [devices_list]
-
-    for device in devices_list:
-        if not device or not isinstance(device, dict):
-            continue
-            
-        term = (device.get("canonical_device_name") or device.get("Canonical_Device_Name") or "").strip()
+    for device in schema_json.get("devices", []):
+        term = device.get("canonical_device_name", "").strip()
         if not term:
-            term = (device.get("device_name") or device.get("Device_Name") or device.get("device") or "").strip()
+            term = device.get("device_name", "").strip()
         if not term:
             continue
 
@@ -146,13 +129,13 @@ def process_single_chunk(chunk):
                 "snomed_id": "PENDING"
             }
 
-        device["cui"] = umls.get("cui", "UMLS_PENDING")
-        device["preferred_name"] = umls.get("preferred_name", term)
-        device["semantic_type"] = umls.get("semantic_type", "Medical Device")
-        device["synonyms"] = umls.get("synonyms", [term])
-        device["snomed_id"] = umls.get("snomed_id", "PENDING")
+        device["cui"] = umls.get("cui", "")
+        device["preferred_name"] = umls.get("preferred_name", "")
+        device["semantic_type"] = umls.get("semantic_type", "")
+        device["synonyms"] = umls.get("synonyms", [])
+        device["snomed_id"] = umls.get("snomed_id", "")
 
-        raw_location = (device.get("implant_location") or device.get("Implant_Location") or device.get("location") or "").strip()
+        raw_location = device.get("implant_location", "").strip()
         device["location_cui"] = ""
 
         if raw_location and raw_location.lower() not in ["none", "null", "nan", "unknown"]:
@@ -167,8 +150,6 @@ def process_single_chunk(chunk):
             except:
                 device["implant_location"] = raw_location
                 device["location_cui"] = "ERROR"
-        else:
-            device["implant_location"] = "Unknown"
 
         chunk_filtered_devices.append(device)
         
@@ -192,14 +173,9 @@ def run_pipeline(note):
     seen_signatures = set()
 
     for d in master_devices_pool:
-        raw_name = d.get("device_name") or d.get("Device_Name") or d.get("preferred_name") or ""
-        name = str(raw_name).strip().lower()
-        
-        raw_date = d.get("implant_date") or d.get("Implant_Date") or "Unknown"
-        date = str(raw_date).strip()
-        
-        raw_status = d.get("implant_status") or d.get("Implant_Status") or "CURRENT"
-        status = str(raw_status).strip().upper()
+        name = str(d.get("device_name", "")).strip().lower()
+        date = str(d.get("implant_date", "")).strip()
+        status = str(d.get("implant_status", "")).strip().upper()
         
         signature = f"{name}_{date}_{status}"
         
@@ -211,10 +187,8 @@ def run_pipeline(note):
     print(f"\n===== 글로벌 융합 완료 (총 {len(final_unique_devices)}개 기기 검출) =====")
 
     try:
-        resolved_output = resolve_device_by_cui(final_result)
+        final_result = resolve_device_by_cui(final_result)
         print("\n===== FDA RESOLVER MATCHED =====")
-        if resolved_output and isinstance(resolved_output, dict) and len(resolved_output.get("devices", [])) > 0:
-            final_result = resolved_output
     except Exception as e:
         print(f"[안내] FDA Resolver 최종 단계 예외 우회: {e}")
         pass
