@@ -5,7 +5,6 @@ from groq import Groq
 
 MODEL_NAME = "llama-3.1-8b-instant"
 
-
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 if not GROQ_API_KEY:
     try:
@@ -23,6 +22,7 @@ def review_device(note, extracted_json):
         except json.JSONDecodeError:
             return {"devices": []}
 
+    # 선생님이 작성하신 정교한 리뷰 규칙 및 가이드라인 프롬프트를 100% 원본 그대로 유지합니다.
     prompt = f"""You are a clinical implantable device reviewer.
 Review the extracted implantable devices.
 Use BOTH:
@@ -89,13 +89,13 @@ Extracted Devices:
         completion = client.chat.completions.create(
             model=MODEL_NAME,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.0,
+            temperature=0.1,          
+            max_tokens=3000,          
             response_format={"type": "json_object"}
         )
         text = completion.choices[0].message.content
     except Exception:
         return extracted_json
-
 
     start = text.find("{")
     end = text.rfind("}")

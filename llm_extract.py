@@ -45,29 +45,27 @@ def chunk_text(text, max_chars=1200):
 
 
 def extract_device_raw(chunk_text):
-    """
-    Groq Llama3 모델을 호출하여 의료기기 정보를 추출합니다.
-    """
+
     prompt_path = BASE_DIR / "prompt_extract.txt"
     with open(prompt_path, encoding="utf-8") as f:
         prompt_template = f.read()
 
     prompt = prompt_template.replace("{TEXT}", chunk_text)
 
-    # 💥 [해결책 ①] Groq JSON 모드 거부 반응 방지 안전장치
     if "json" not in prompt.lower():
         prompt += "\n\nReturn the output in a valid JSON object format."
 
     try:
+
         completion = client.chat.completions.create(
-            model="llama-3.1-8b-instant",  #  [패치] Groq 최신형 모델명으로 변경
+            model="llama-3.1-8b-instant",  
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.0,
+            temperature=0.1,          
+            max_tokens=3000,          
             response_format={"type": "json_object"}
         )
         result = completion.choices[0].message.content.strip()
     except Exception as e:
-        # Streamlit 화면에서도 무슨 에러인지 알 수 있도록 경고창 처리
         st.error(f"Groq API 호출 중 오류 발생: {e}")
         result = '{"devices": []}'
 
@@ -120,16 +118,14 @@ def process_single_chunk(chunk):
 
     chunk_filtered_devices = []
     
-    # 💥 [해결책 ②] AI가 기기 목록 키를 대문자로 뱉었을 때를 대비한 융합 방어막
     devices_list = schema_json.get("devices") or schema_json.get("Devices") or schema_json.get("DEVICE") or []
-    if isinstance(devices_list, dict):  # 리스트가 아니라 단일 객체로 왔을 때 예외 처리
+    if isinstance(devices_list, dict):  
         devices_list = [devices_list]
 
     for device in devices_list:
         if not device or not isinstance(device, dict):
             continue
             
-        # 💥 AI가 Key 값을 대소문자 무작위로 뱉어도 전부 다 잡아내도록 수정
         term = (device.get("canonical_device_name") or device.get("Canonical_Device_Name") or "").strip()
         if not term:
             term = (device.get("device_name") or device.get("Device_Name") or device.get("device") or "").strip()
@@ -150,14 +146,12 @@ def process_single_chunk(chunk):
                 "snomed_id": "PENDING"
             }
 
-        # 데이터 안전 맵핑 (대소문자 무관하게 강제 주입)
         device["cui"] = umls.get("cui", "UMLS_PENDING")
         device["preferred_name"] = umls.get("preferred_name", term)
         device["semantic_type"] = umls.get("semantic_type", "Medical Device")
         device["synonyms"] = umls.get("synonyms", [term])
         device["snomed_id"] = umls.get("snomed_id", "PENDING")
 
-        # 기기 이식 위치 추출 안정화
         raw_location = (device.get("implant_location") or device.get("Implant_Location") or device.get("location") or "").strip()
         device["location_cui"] = ""
 
@@ -198,7 +192,6 @@ def run_pipeline(note):
     seen_signatures = set()
 
     for d in master_devices_pool:
-        # 데이터 유실 방지를 위한 필드 추출 다중화
         raw_name = d.get("device_name") or d.get("Device_Name") or d.get("preferred_name") or ""
         name = str(raw_name).strip().lower()
         
@@ -217,11 +210,9 @@ def run_pipeline(note):
     final_result = {"devices": final_unique_devices}
     print(f"\n===== 글로벌 융합 완료 (총 {len(final_unique_devices)}개 기기 검출) =====")
 
-    # 💥 [해결책 ③] FDA 리졸버가 에러를 내거나 데이터를 다 밀어버릴 경우를 대비한 가드레일
     try:
         resolved_output = resolve_device_by_cui(final_result)
         print("\n===== FDA RESOLVER MATCHED =====")
-        # 만약 리졸버를 거쳤는데 데이터가 0개로 증발했다면, 안전하게 원본(final_result)을 복구시킵니다.
         if resolved_output and isinstance(resolved_output, dict) and len(resolved_output.get("devices", [])) > 0:
             final_result = resolved_output
     except Exception as e:
