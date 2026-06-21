@@ -3,7 +3,7 @@ import re
 import os
 from pathlib import Path
 import streamlit as st
-from groq import Groq  # 외부 서버 연결을 위한 선언
+from groq import Groq  
 
 from schema_loader import apply_schema
 from umls_resolver import search_umls
@@ -24,7 +24,6 @@ client = Groq(api_key=GROQ_API_KEY)
 
 
 def chunk_text(text, max_chars=1200):
-    """의무기록의 단락(줄바꿈)을 기준선으로 삼아 안전한 크기로 분할합니다."""
     paragraphs = text.split('\n')
     chunks = []
     current_chunk = []
@@ -47,8 +46,8 @@ def chunk_text(text, max_chars=1200):
 
 def extract_device_raw(chunk_text):
     """
-    [Qwen 엔진 복구] Groq 클라우드의 대형 Qwen 모델을 사용하여
-    기존 로컬 환경과 동일한 고품질 의료 데이터를 실시간 추출합니다.
+    Groq 클라우드의 명품 Qwen 모델을 호출합니다.
+    에러 발생 시 화면에 원인을 즉시 강제 출력합니다.
     """
     prompt_path = BASE_DIR / "prompt_extract.txt"
     with open(prompt_path, encoding="utf-8") as f:
@@ -56,11 +55,14 @@ def extract_device_raw(chunk_text):
 
     prompt = prompt_template.replace("{TEXT}", chunk_text)
 
+    # Groq JSON 모드 필수 키워드 보장
+    if "json" not in prompt.lower():
+        prompt += "\n\nReturn the output in a valid JSON object format."
+
     try:
-        # 모델명을 Groq 공식 최신 Qwen 모델로 매핑합니다.
-        # 데이터 유실을 막기 위해 max_tokens를 넉넉히 제공합니다.
+        # [교정] Groq 공식 표준 모델명인 qwen-2.5-coder-32b 로 안정성을 확보합니다.
         completion = client.chat.completions.create(
-            model="qwen-2.5-32b",  
+            model="qwen-2.5-coder-32b",  
             messages=[{"role": "user", "content": prompt}],
             temperature=0.0,
             max_tokens=3000,
@@ -68,7 +70,8 @@ def extract_device_raw(chunk_text):
         )
         result = completion.choices[0].message.content.strip()
     except Exception as e:
-        print(f"[서버 AI 호출 에러] {e}")
+        # 🚨 침묵하지 않고 Streamlit UI 화면에 에러 원인을 직접 살포합니다.
+        st.error(f"🚨 [Step 1 원인 분석] Groq API 호출 실패: {e}")
         result = '{"devices": []}'
 
     if not result.endswith("}") and not result.endswith("```"):
@@ -90,7 +93,6 @@ def extract_json(text):
 
 
 def process_single_chunk(chunk):
-    """하나의 조각에 대해 Step 1부터 Step 5까지 완벽히 독립적으로 수행합니다."""
     raw_result = extract_device_raw(chunk)
     
     try:
@@ -99,7 +101,8 @@ def process_single_chunk(chunk):
             chunk_json = reviewed_result
         else:
             chunk_json = extract_json(reviewed_result)
-    except:
+    except Exception as e:
+        print(f"[디버그] 리뷰 단계 우회: {e}")
         chunk_json = extract_json(raw_result)
 
     try:
@@ -108,6 +111,11 @@ def process_single_chunk(chunk):
         schema_json = chunk_json
 
     chunk_filtered_devices = []
+    
+    # 안전한 리스트 바인딩
+    if not schema_json or not isinstance(schema_json, dict):
+        schema_json = {"devices": []}
+        
     for device in schema_json.get("devices", []):
         term = device.get("canonical_device_name", "").strip()
         if not term:

@@ -3,8 +3,8 @@ import os
 import streamlit as st
 from groq import Groq  
 
-# [Qwen 엔진 복구] 상단 모델명을 Groq 공식 Qwen 모델로 고정합니다.
-MODEL_NAME = "qwen-2.5-32b"
+# [교정] 동일하게 Groq 표준 Qwen 모델명으로 동기화합니다.
+MODEL_NAME = "qwen-2.5-coder-32b"
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 if not GROQ_API_KEY:
@@ -48,9 +48,7 @@ Rules:
 5. Keep only implantable medical devices.
 
 Do not overwrite device_name.
-
 device_name should preserve the original device name mentioned in the clinical note.
-
 canonical_device_name should contain the normalized device concept.
 
 IMPORTANT:
@@ -72,11 +70,6 @@ Always return a JSON OBJECT conforming to this format:
 Never return a single device object.
 Never return explanations. Return JSON only.
 
-IMPORTANT:
-device_name = exact product name mentioned in note
-canonical_device_name = normalized generic implant concept (Examples: Gore Excluder -> AAA Stent Graft, Sapien 3 -> Transcatheter Aortic Valve Prosthesis)
-Do not replace canonical_device_name with a brand name.
-
 Clinical Note:
 {note}
 
@@ -93,7 +86,9 @@ Extracted Devices:
             response_format={"type": "json_object"}
         )
         text = completion.choices[0].message.content
-    except Exception:
+    except Exception as e:
+        # 🚨 리뷰 단계 실패 사유도 가감 없이 화면에 뿌립니다.
+        st.error(f"🚨 [Step 2 원인 분석] 리뷰어 가동 실패: {e}")
         return extracted_json
 
     start = text.find("{")
