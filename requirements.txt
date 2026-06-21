@@ -3,4 +3,4 @@ pandas
 requests
 rapidfuzz
 plotly
-ollama
+groq
