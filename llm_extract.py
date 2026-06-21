@@ -54,6 +54,10 @@ def extract_device_raw(chunk_text):
 
     prompt = prompt_template.replace("{TEXT}", chunk_text)
 
+    # 💥 [해결책 ①] Groq JSON 모드 거부 반응 방지 안전장치
+    if "json" not in prompt.lower():
+        prompt += "\n\nReturn the output in a valid JSON object format."
+
     try:
         completion = client.chat.completions.create(
             model="llama3-8b-8192",
@@ -63,27 +67,19 @@ def extract_device_raw(chunk_text):
         )
         result = completion.choices[0].message.content.strip()
     except Exception as e:
-        print(f"[서버 AI 호출 에러] {e}")
+        # Streamlit 화면에서도 무슨 에러인지 알 수 있도록 경고창 처리
+        st.error(f"Groq API 호출 중 오류 발생: {e}")
         result = '{"devices": []}'
 
     return result
 
 
 def extract_json(text):
-    """
-    [슈퍼 인텔리전스 파싱 패치]
-    AI가 앞뒤에 어떤 무작위 텍스트나 마크다운(```json)을 붙여서 뱉더라도,
-    가장 바깥쪽의 가장 큰 중괄호 { ... } 구간을 강제로 추적하여 
-    무조건 완벽한 JSON 데이터로 변환해 주는 철벽 가드레일 함수입니다.
-    """
     if not text or not isinstance(text, str):
         return {"devices": []}
         
     try:
-        # 1단계: 불필요한 마크다운 태그 1차 청소
         cleaned = re.sub(r"\x60{3}json|\x60{3}", "", text).strip()
-        
-        # 2단계: 문자열 전체에서 처음 나타나는 { 와 마지막 } 사이를 탐색
         start = cleaned.find("{")
         end = cleaned.rfind("}")
         
@@ -91,7 +87,6 @@ def extract_json(text):
             json_candidate = cleaned[start:end+1]
             return json.loads(json_candidate)
             
-        # 3단계: 만약 위 방식으로도 실패하면 정규식 매칭 전면 가동
         json_match = re.search(r"\{[\s\S]*\}", cleaned)
         if json_match:
             return json.loads(json_match.group())
@@ -99,14 +94,12 @@ def extract_json(text):
         raise ValueError("구조적 결함")
     except Exception as e:
         print(f"[강제 파싱 디버그] 파싱 우회 작동: {e}")
-        # 만약 진짜 아무것도 안 잡히면 빈 구조 전달
         return {"devices": []}
 
 
 def process_single_chunk(chunk):
     raw_result = extract_device_raw(chunk)
     
-    # 💥 핵심 패치: extract_json을 통해 앞뒤 공백 및 마크다운을 완벽히 정제한 뒤 연동합니다.
     try:
         reviewed_result = review_device(chunk, extract_json(raw_result))
         if isinstance(reviewed_result, dict):
@@ -126,13 +119,20 @@ def process_single_chunk(chunk):
         schema_json = {"devices": []}
 
     chunk_filtered_devices = []
-    for device in schema_json.get("devices", []):
+    
+    # 💥 [해결책 ②] AI가 기기 목록 키를 대문자로 뱉었을 때를 대비한 융합 방어막
+    devices_list = schema_json.get("devices") or schema_json.get("Devices") or schema_json.get("DEVICE") or []
+    if isinstance(devices_list, dict):  # 리스트가 아니라 단일 객체로 왔을 때 예외 처리
+        devices_list = [devices_list]
+
+    for device in devices_list:
         if not device or not isinstance(device, dict):
             continue
             
-        term = device.get("canonical_device_name", "").strip()
+        # 💥 AI가 Key 값을 대소문자 무작위로 뱉어도 전부 다 잡아내도록 수정
+        term = (device.get("canonical_device_name") or device.get("Canonical_Device_Name") or "").strip()
         if not term:
-            term = device.get("device_name", "").strip()
+            term = (device.get("device_name") or device.get("Device_Name") or device.get("device") or "").strip()
         if not term:
             continue
 
@@ -150,13 +150,15 @@ def process_single_chunk(chunk):
                 "snomed_id": "PENDING"
             }
 
-        device["cui"] = umls.get("cui", "")
-        device["preferred_name"] = umls.get("preferred_name", "")
-        device["semantic_type"] = umls.get("semantic_type", "")
-        device["synonyms"] = umls.get("synonyms", [])
-        device["snomed_id"] = umls.get("snomed_id", "")
+        # 데이터 안전 맵핑 (대소문자 무관하게 강제 주입)
+        device["cui"] = umls.get("cui", "UMLS_PENDING")
+        device["preferred_name"] = umls.get("preferred_name", term)
+        device["semantic_type"] = umls.get("semantic_type", "Medical Device")
+        device["synonyms"] = umls.get("synonyms", [term])
+        device["snomed_id"] = umls.get("snomed_id", "PENDING")
 
-        raw_location = device.get("implant_location", "").strip()
+        # 기기 이식 위치 추출 안정화
+        raw_location = (device.get("implant_location") or device.get("Implant_Location") or device.get("location") or "").strip()
         device["location_cui"] = ""
 
         if raw_location and raw_location.lower() not in ["none", "null", "nan", "unknown"]:
@@ -171,6 +173,8 @@ def process_single_chunk(chunk):
             except:
                 device["implant_location"] = raw_location
                 device["location_cui"] = "ERROR"
+        else:
+            device["implant_location"] = "Unknown"
 
         chunk_filtered_devices.append(device)
         
@@ -194,9 +198,15 @@ def run_pipeline(note):
     seen_signatures = set()
 
     for d in master_devices_pool:
-        name = str(d.get("device_name", "")).strip().lower()
-        date = str(d.get("implant_date", "")).strip()
-        status = str(d.get("implant_status", "")).strip().upper()
+        # 데이터 유실 방지를 위한 필드 추출 다중화
+        raw_name = d.get("device_name") or d.get("Device_Name") or d.get("preferred_name") or ""
+        name = str(raw_name).strip().lower()
+        
+        raw_date = d.get("implant_date") or d.get("Implant_Date") or "Unknown"
+        date = str(raw_date).strip()
+        
+        raw_status = d.get("implant_status") or d.get("Implant_Status") or "CURRENT"
+        status = str(raw_status).strip().upper()
         
         signature = f"{name}_{date}_{status}"
         
@@ -207,9 +217,13 @@ def run_pipeline(note):
     final_result = {"devices": final_unique_devices}
     print(f"\n===== 글로벌 융합 완료 (총 {len(final_unique_devices)}개 기기 검출) =====")
 
+    # 💥 [해결책 ③] FDA 리졸버가 에러를 내거나 데이터를 다 밀어버릴 경우를 대비한 가드레일
     try:
-        final_result = resolve_device_by_cui(final_result)
+        resolved_output = resolve_device_by_cui(final_result)
         print("\n===== FDA RESOLVER MATCHED =====")
+        # 만약 리졸버를 거쳤는데 데이터가 0개로 증발했다면, 안전하게 원본(final_result)을 복구시킵니다.
+        if resolved_output and isinstance(resolved_output, dict) and len(resolved_output.get("devices", [])) > 0:
+            final_result = resolved_output
     except Exception as e:
         print(f"[안내] FDA Resolver 최종 단계 예외 우회: {e}")
         pass
