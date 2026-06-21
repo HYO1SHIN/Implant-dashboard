@@ -15,7 +15,7 @@
 
 ## 🌐 Live Demo
 
-🚀 **Experience the interactive dashboard live right now:** 👉 **[https://implant-dashboard-scx5vbr9e7ndaw5jbaukye.streamlit.app/](https://implant-dashboard-scx5vbr9e7ndaw5jbaukye.streamlit.app/)**
+🚀 **Experience the interactive dashboard live right now:** 👉 **[[https://implant-dashboard-scx5vbr9e7ndaw5jbaukye.streamlit.app](https://implant-dashboard-sogang.streamlit.app/)/]**
 
 ---
 
