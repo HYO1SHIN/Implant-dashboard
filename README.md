@@ -1,2 +1,2 @@
-# Implant-dashboard
-Dashboard for Tracking Medical Implant and Electronic Device History (Graduate Project)
+# LLM-Powered Implant-Dashboard
+LLM-Powered Implantable Medical Device Registry and Visualization Platform (Graduate Project)
