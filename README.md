@@ -1,4 +1,4 @@
-# <p align="center">🩺 ImplantAtlas</p>
+# <p align="center">🩺 Implant-Dashboard</p>
 <p align="center">
   <strong>LLM-Powered Implantable Medical Device Registry & Visualization Platform</strong><br>
   <em>
@@ -23,7 +23,7 @@
 
 Modern healthcare systems contain vast amounts of implant-related information hidden within unstructured, fragmented clinical notes. Manual review of years of documentation compromises clinical workflow efficiency and patient safety. 
 
-`<ImplantAtlas>` solves this by transforming fragmented medical prose into structured, actionable **Device Intelligence**, enabling clinicians to grasp a patient's complete implant history within seconds.
+`<Implant-Dashboard>` solves this by transforming fragmented medical prose into structured, actionable **Device Intelligence**, enabling clinicians to grasp a patient's complete implant history within seconds.
 
 ---
 
@@ -100,7 +100,7 @@ Generates a highly intuitive, multi-dimensional visualization layer:
 
 ### 📢 비정형 의무기록을 시각화된 이식형 의료기기 정보로 변환하는 임상 decision support AI 플랫폼
 
-**ImplantAtlas**는 병원 전자의무기록(EMR) 내에 정형화되지 않은 상태로 흩어져 있는 임상 텍스트(Clinical Notes)로부터 환자의 체내 삽입형 의료기기(Implantable Medical Devices) 정보를 자동 추출하는 대규모 언어 모델(LLM) 기반의 임상 의사결정 지원 플랫폼입니다. 
+**Implant-Dashboard**는 병원 전자의무기록(EMR) 내에 정형화되지 않은 상태로 흩어져 있는 임상 텍스트(Clinical Notes)로부터 환자의 체내 삽입형 의료기기(Implantable Medical Devices) 정보를 자동 추출하는 대규모 언어 모델(LLM) 기반의 임상 의사결정 지원 플랫폼입니다. 
 
 추출된 데이터는 글로벌 의료 온톨로지 표준인 **UMLS(Unified Medical Language System)** 및 미국 **FDA GUDID(Global Unique Device Identification Database)** 지식베이스와 실시간으로 연계 및 확장되어, 의료진에게 구조화된 **Device Registry(기기 이력 현황), Timeline(생애주기 흐름), 19개 구역 표준 Anatomical Body Map(인체 매핑)** 시각화 레이어를 즉각적으로 제공합니다.
 
