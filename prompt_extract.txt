@@ -41,10 +41,17 @@ You MUST categorize the "implant_location" into EXACTLY ONE of the following 19 
 Rules for Location Mapping:
 1. Infer the location using standard clinical knowledge if not explicit. You MUST map devices to the 19 allowed list above (e.g., ICD -> Heart, Pacemaker -> Heart, Sapien 3 valve -> Heart, AAA Stent Graft -> Abdomen, VP Shunt -> Brain). Never output terms like "Right ventricle" or "Aortic valve".
 2. Pay strict attention to the patient's "Left" or "Right" side mentioned in the text.
-3. CRITICAL CLINICAL ABBREVIATION: 'RCA' stands for 'Right Coronary Artery' and MUST map to 'Heart'. Never map it to 'Root Cause Analysis'. 'LAD' also maps to 'Heart'.
 
 STRICT TEMPORAL REPLACEMENT RULE:
 If a device was previously implanted and then REMOVED or REPLACED by a new device, you MUST output TWO separate JSON objects: one for the old removed device (NOT CURRENT) and one for the new active device (CURRENT).
+
+STRICT DEVICE LIFECYCLE MERGING RULE:
+- Do NOT create a new separate JSON object for every single timeline event (implantation, replacement, removal) if they clearly refer to the SAME device lineage or slot.
+- For example, if a note says "2010: ICD implanted", "2018: ICD replaced", and "2022: Old ICD removed", this represents the lifecycle of ONE device slot, NOT three different devices.
+- You MUST consolidate this lineage into a maximum of TWO JSON objects:
+  1) One "NOT CURRENT" object representing the historical/old device (combining the 2010 implantation and its subsequent 2018 replacement/2022 removal events into a single history. Put all these related timeline sentences together into its "supporting_text").
+  2) One "CURRENT" object representing the active replacement device implanted in 2018.
+- NEVER generate a third independent JSON object for sentences like "Old ICD removed" if it is obviously describing the fate of the previously mentioned old ICD. Merge that context into the historical device's object.
 
 🎯 TARGETED FEW-SHOT EXAMPLE (Strict Chronology & Location Match):
 Clinical note: "The patient previously underwent ICD implantation in 2010. The device was removed in 2017 due to infection. A replacement ICD was implanted in 2018. In 2021, TAVR was performed using a Sapien 3 valve. AAA repair with Gore Excluder graft was completed in 2022. Family history is notable for a pacemaker in the patient's father. A leadless pacemaker implantation is planned next month."
@@ -114,7 +121,8 @@ Output format:
 Final Rules:
 1. Extract both old removed devices (NOT CURRENT) and new devices (CURRENT) as completely separate objects.
 2. Use ONLY strings from the 19 Allowed Locations List for "implant_location".
-3. Return valid JSON only. No explanations, no markdown blocks.
+3. CRITICAL EMERGENCY RULE: If the clinical note mentions 'RCA' (e.g., 'deployed RCA'), 'RCA' stands for 'Right Coronary Artery'. You MUST set "implant_location" to "Heart". NEVER output 'RCA' or 'Root Cause Analysis' in the JSON object.
+4. Return valid JSON only. No explanations, no markdown blocks.
 
 Clinical note:
 {TEXT}
