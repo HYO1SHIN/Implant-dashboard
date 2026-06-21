@@ -4,7 +4,7 @@ import streamlit as st
 from groq import Groq  
 
 # Groq 최강의 70B 모델 고정
-MODEL_NAME = "llama-3.3-70b-versatile"
+MODEL_NAME = "llama-3.3-8b-versatile"
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 if not GROQ_API_KEY:
