@@ -5,7 +5,7 @@
   Hyowon Shin
   <br>
   M.S. Candidate, Graduate School of AI·Software, Sogang University
-  <br><br>
+  <br>
   From Unstructured Clinical Notes to Interactive Device Intelligence
   </em>
 </p>
