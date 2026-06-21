@@ -3,7 +3,7 @@ import re
 import os
 from pathlib import Path
 import streamlit as st
-from groq import Groq  # ◀ ollama 대신 외부 서버 AI 클라이언트를 도입합니다.
+from groq import Groq  
 
 from schema_loader import apply_schema
 from umls_resolver import search_umls
@@ -13,9 +13,7 @@ from review_device import review_device
 BASE_DIR = Path(__file__).parent
 ALLOWED_SEMANTIC_TYPES = ["Medical Device", "Manufactured Object", "Drug Delivery Device"]
 
-# -------------------------------------------------------------
-# [서버 배포 가드레일] 환경변수 및 Streamlit Secrets에서 API Key 로드
-# -------------------------------------------------------------
+
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 if not GROQ_API_KEY:
     try:
@@ -28,7 +26,6 @@ client = Groq(api_key=GROQ_API_KEY)
 
 
 def chunk_text(text, max_chars=1200):
-    """의무기록의 단락(줄바꿈)을 기준선으로 삼아 안전한 크기로 분할합니다."""
     paragraphs = text.split('\n')
     chunks = []
     current_chunk = []
@@ -50,10 +47,7 @@ def chunk_text(text, max_chars=1200):
 
 
 def extract_device_raw(chunk_text):
-    """
-    [패치 완료] 로컬 GPU(ollama) 대신 웹 서버 인프라(Groq)를 연결하여
-    교수님이 임의로 입력하는 Clinical Note 분석을 100% 실시간으로 수행합니다.
-    """
+
     prompt_path = BASE_DIR / "prompt_extract.txt"
     with open(prompt_path, encoding="utf-8") as f:
         prompt_template = f.read()
@@ -61,8 +55,7 @@ def extract_device_raw(chunk_text):
     prompt = prompt_template.replace("{TEXT}", chunk_text)
 
     try:
-        # qwen2.5:3b와 프롬프트 호환성이 가장 좋으면서 성능은 훨씬 뛰어난 8B 체급의 대형 모델을 매핑합니다.
-        # response_format을 주어 엄격한 JSON 구조를 보장받습니다.
+
         completion = client.chat.completions.create(
             model="llama3-8b-8192",
             messages=[{"role": "user", "content": prompt}],
@@ -203,7 +196,6 @@ def run_pipeline(note):
 
 
 if __name__ == "__main__":
-    # 메인 모듈 직접 실행 시 에러 방지용 가드레일 처리
     test_file = "tests/test_11_hardenTEST.txt"
     try:
         if Path(test_file).exists():
