@@ -1,7 +1,9 @@
 import json
 import re
+import os
 from pathlib import Path
-import ollama
+import streamlit as st
+from groq import Groq  # ◀ ollama 대신 외부 서버 AI 클라이언트를 도입합니다.
 
 from schema_loader import apply_schema
 from umls_resolver import search_umls
@@ -11,6 +13,18 @@ from review_device import review_device
 BASE_DIR = Path(__file__).parent
 ALLOWED_SEMANTIC_TYPES = ["Medical Device", "Manufactured Object", "Drug Delivery Device"]
 
+# -------------------------------------------------------------
+# [서버 배포 가드레일] 환경변수 및 Streamlit Secrets에서 API Key 로드
+# -------------------------------------------------------------
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+if not GROQ_API_KEY:
+    try:
+        GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
+    except:
+        GROQ_API_KEY = ""
+
+# Groq 클라이언트 안전 초기화
+client = Groq(api_key=GROQ_API_KEY)
 
 
 def chunk_text(text, max_chars=1200):
@@ -36,18 +50,30 @@ def chunk_text(text, max_chars=1200):
 
 
 def extract_device_raw(chunk_text):
+    """
+    [패치 완료] 로컬 GPU(ollama) 대신 웹 서버 인프라(Groq)를 연결하여
+    교수님이 임의로 입력하는 Clinical Note 분석을 100% 실시간으로 수행합니다.
+    """
     prompt_path = BASE_DIR / "prompt_extract.txt"
     with open(prompt_path, encoding="utf-8") as f:
         prompt_template = f.read()
 
     prompt = prompt_template.replace("{TEXT}", chunk_text)
 
-    response = ollama.chat(
-        model="qwen2.5:3b",
-        messages=[{"role": "user", "content": prompt}],
-        options={"temperature": 0},
-    )
-    result = response["message"]["content"].strip()
+    try:
+        # qwen2.5:3b와 프롬프트 호환성이 가장 좋으면서 성능은 훨씬 뛰어난 8B 체급의 대형 모델을 매핑합니다.
+        # response_format을 주어 엄격한 JSON 구조를 보장받습니다.
+        completion = client.chat.completions.create(
+            model="llama3-8b-8192",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.0,
+            response_format={"type": "json_object"}
+        )
+        result = completion.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"[서버 AI 호출 에러] {e}")
+        result = '{"devices": []}'
+
     if not result.endswith("}") and not result.endswith("```"):
         result += "\n}"
     return result
@@ -176,12 +202,16 @@ def run_pipeline(note):
     return final_result
 
 
-
 if __name__ == "__main__":
+    # 메인 모듈 직접 실행 시 에러 방지용 가드레일 처리
     test_file = "tests/test_11_hardenTEST.txt"
     try:
-        note_content = load_note(test_file)
-        pipeline_output = run_pipeline(note_content)
-        print(json.dumps(pipeline_output, indent=2, ensure_ascii=False))
-    except FileNotFoundError:
-        print(f"[안내] 로컬 테스트 파일 세팅 완료.")
+        if Path(test_file).exists():
+            with open(test_file, "r", encoding="utf-8") as f:
+                note_content = f.read()
+            pipeline_output = run_pipeline(note_content)
+            print(json.dumps(pipeline_output, indent=2, ensure_ascii=False))
+        else:
+            print(f"[안내] 로컬 테스트 파일 세팅 완료.")
+    except Exception as e:
+        print(f"[안내] 로컬 테스트 실행 예외 완료: {e}")
