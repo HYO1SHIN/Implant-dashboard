@@ -3,6 +3,7 @@ import os
 import streamlit as st
 from groq import Groq  
 
+# Groq 최강의 70B 모델 고정
 MODEL_NAME = "llama-3.3-70b-versatile"
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
@@ -22,33 +23,24 @@ def review_device(note, extracted_json):
         except json.JSONDecodeError:
             return {"devices": []}
 
-    prompt = f"""You are a clinical implantable device reviewer.
-Review the extracted implantable devices.
-Use BOTH:
-1. Original clinical note
-2. Extracted device list
+    # 💥 Llama-3.3-70b의 의학적 추론 능력을 극한으로 끌어올리는 초정밀 프롬프트 아키텍처
+    prompt = f"""You are an expert clinical data scientist specializing in implantable medical devices.
+Review and refine the extracted device list based on the original clinical note.
 
-Determine whether:
-- a device is truly present
-- a device was hallucinated
-- a device was missed
-- implant status is correct
-- implant date is correct
+[CRITICAL CLINICAL RULES]
+1. STRICT PATIENT FOCUS: ONLY extract devices implanted in the PATIENT. 
+   - Check the section carefully. Strictly IGNORE any devices belonging to family members (e.g., 'Mother pacemaker', 'Father had pacemaker' -> NEVER EXTRACT).
+2. EXPLANTED/REMOVED DEVICES: Do NOT delete historical or removed devices. 
+   - If a device was 'removed', 'explanted', or 'replaced', KEEP the device in the list but set its "implant_status" to "NOT CURRENT".
+3. CARDIOLOGY ABBREVIATIONS: 
+   - 'RCA' stands for 'Right Coronary Artery' (Location). NEVER translate it to 'Root Cause Analysis'.
+   - 'LAD' stands for 'Left Anterior Descending artery'.
+4. NO FUTURE/PLANNED DEVICES: If a device is only being 'considered' or 'planned' but not yet implanted, do NOT extract it.
 
-If a device was replaced by a newer device of the same type, keep only the currently implanted device.
-Do not keep both old device and replacement device.
-For replacement events, represent only the active device.
-
-Rules:
-1. Remove unsupported devices.
-2. Add clearly missing implantable devices.
-3. Correct implant status if wrong.
-4. Correct implant date if explicit evidence exists.
-5. Keep only implantable medical devices.
-
-Do not overwrite device_name.
-device_name should preserve the original device name mentioned in the clinical note.
-canonical_device_name should contain the normalized device concept.
+Rules for Fields:
+- device_name: Exact product or device name from the note.
+- canonical_device_name: Normalized generic implant concept.
+- implant_status: Must be "CURRENT" (active) or "NOT CURRENT" (removed/explanted).
 
 IMPORTANT:
 Always return a JSON OBJECT conforming to this format:
@@ -66,8 +58,7 @@ Always return a JSON OBJECT conforming to this format:
   ]
 }}
 
-Never return a single device object.
-Never return explanations. Return JSON only.
+Never return explanations or any text outside the JSON object. Return JSON only.
 
 Clinical Note:
 {note}
@@ -86,8 +77,7 @@ Extracted Devices:
         )
         text = completion.choices[0].message.content
     except Exception as e:
-        # 🚨 리뷰 단계 실패 사유도 가감 없이 화면에 뿌립니다.
-        st.error(f"🚨 [Step 2 원인 분석] 리뷰어 가동 실패: {e}")
+        st.error(f"🚨 [Reviewer Error] {e}")
         return extracted_json
 
     start = text.find("{")
