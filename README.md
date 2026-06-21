@@ -1,7 +1,8 @@
 # <p align="center">🩺 ImplantAtlas</p>
 <p align="center">
   <strong>LLM-Powered Implantable Medical Device Registry & Visualization Platform</strong><br>
-  <em>Graduate Project | From Unstructured Clinical Notes to Interactive Device Intelligence</em>
+  <em> Hyowon Shin | M.S. Candidate, Graduate School of AI·Software, Sogang University
+    From Unstructured Clinical Notes to Interactive Device Intelligence</em>
 </p>
 
 
