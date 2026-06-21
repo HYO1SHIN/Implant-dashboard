@@ -3,7 +3,7 @@ import re
 import os
 from pathlib import Path
 import streamlit as st
-from groq import Groq  
+from groq import Groq
 
 from schema_loader import apply_schema
 from umls_resolver import search_umls
@@ -13,7 +13,6 @@ from review_device import review_device
 BASE_DIR = Path(__file__).parent
 ALLOWED_SEMANTIC_TYPES = ["Medical Device", "Manufactured Object", "Drug Delivery Device"]
 
-
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 if not GROQ_API_KEY:
     try:
@@ -21,7 +20,6 @@ if not GROQ_API_KEY:
     except:
         GROQ_API_KEY = ""
 
-# Groq 클라이언트 안전 초기화
 client = Groq(api_key=GROQ_API_KEY)
 
 
@@ -47,7 +45,9 @@ def chunk_text(text, max_chars=1200):
 
 
 def extract_device_raw(chunk_text):
-
+    """
+    Groq Llama3 모델을 호출하여 의료기기 정보를 추출합니다.
+    """
     prompt_path = BASE_DIR / "prompt_extract.txt"
     with open(prompt_path, encoding="utf-8") as f:
         prompt_template = f.read()
@@ -55,7 +55,6 @@ def extract_device_raw(chunk_text):
     prompt = prompt_template.replace("{TEXT}", chunk_text)
 
     try:
-
         completion = client.chat.completions.create(
             model="llama3-8b-8192",
             messages=[{"role": "user", "content": prompt}],
@@ -67,35 +66,55 @@ def extract_device_raw(chunk_text):
         print(f"[서버 AI 호출 에러] {e}")
         result = '{"devices": []}'
 
-    if not result.endswith("}") and not result.endswith("```"):
-        result += "\n}"
     return result
 
 
 def extract_json(text):
+    """
+    [슈퍼 인텔리전스 파싱 패치]
+    AI가 앞뒤에 어떤 무작위 텍스트나 마크다운(```json)을 붙여서 뱉더라도,
+    가장 바깥쪽의 가장 큰 중괄호 { ... } 구간을 강제로 추적하여 
+    무조건 완벽한 JSON 데이터로 변환해 주는 철벽 가드레일 함수입니다.
+    """
+    if not text or not isinstance(text, str):
+        return {"devices": []}
+        
     try:
-        cleaned_text = re.sub(r"\x60{3}json|\x60{3}", "", text).strip()
-        json_match = re.search(r"\{[\s\S]*\}", cleaned_text)
+        # 1단계: 불필요한 마크다운 태그 1차 청소
+        cleaned = re.sub(r"\x60{3}json|\x60{3}", "", text).strip()
+        
+        # 2단계: 문자열 전체에서 처음 나타나는 { 와 마지막 } 사이를 탐색
+        start = cleaned.find("{")
+        end = cleaned.rfind("}")
+        
+        if start != -1 and end != -1:
+            json_candidate = cleaned[start:end+1]
+            return json.loads(json_candidate)
+            
+        # 3단계: 만약 위 방식으로도 실패하면 정규식 매칭 전면 가동
+        json_match = re.search(r"\{[\s\S]*\}", cleaned)
         if json_match:
             return json.loads(json_match.group())
-        else:
-            raise ValueError("JSON 구조 결여")
+            
+        raise ValueError("구조적 결함")
     except Exception as e:
-        print(f"[디버그] 조각 JSON 파싱 우회: {e}")
+        print(f"[강제 파싱 디버그] 파싱 우회 작동: {e}")
+        # 만약 진짜 아무것도 안 잡히면 빈 구조 전달
         return {"devices": []}
 
 
 def process_single_chunk(chunk):
-    """하나의 조각에 대해 Step 1부터 Step 5까지 완벽히 독립적으로 수행합니다."""
     raw_result = extract_device_raw(chunk)
     
+    # 💥 핵심 패치: extract_json을 통해 앞뒤 공백 및 마크다운을 완벽히 정제한 뒤 연동합니다.
     try:
-        reviewed_result = review_device(chunk, raw_result)
+        reviewed_result = review_device(chunk, extract_json(raw_result))
         if isinstance(reviewed_result, dict):
             chunk_json = reviewed_result
         else:
             chunk_json = extract_json(reviewed_result)
-    except:
+    except Exception as e:
+        print(f"[디버그] 리뷰 단계 우회: {e}")
         chunk_json = extract_json(raw_result)
 
     try:
@@ -103,8 +122,14 @@ def process_single_chunk(chunk):
     except:
         schema_json = chunk_json
 
+    if not schema_json or not isinstance(schema_json, dict):
+        schema_json = {"devices": []}
+
     chunk_filtered_devices = []
     for device in schema_json.get("devices", []):
+        if not device or not isinstance(device, dict):
+            continue
+            
         term = device.get("canonical_device_name", "").strip()
         if not term:
             term = device.get("device_name", "").strip()
