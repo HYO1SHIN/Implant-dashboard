@@ -12,11 +12,10 @@ A device intentionally implanted into the patient's body and intended to remain 
 DO NOT EXTRACT:
 - Family history devices (e.g., father's pacemaker, mother pacemaker). Strictly IGNORE and drop any devices that belong to family members or appear under the "Family history:" section.
 - Planned procedures / Future devices (e.g., planned next month, considering DBS)
-- Temporary procedural equipment (e.g., guidewires, temporary catheters, balloons)
+- Temporary procedural equipment (e.g., guidewires, temporary catheters, balloons, sheaths, needles)
 
-STRICT IMPLANT LOCATION RULE:
-You MUST categorize the "implant_location" into EXACTLY ONE of the following 19 predefined anatomical regions. Do not invent, modify, or use any other terms.
-
+STRICT IMPLANT LOCATION RULE (19 ALLOWED LOCATIONS ONLY):
+You MUST categorize the "implant_location" into EXACTLY ONE of the following 19 predefined anatomical regions. 
 [The 19 Allowed Locations List]
 - Brain
 - Neck
@@ -38,62 +37,46 @@ You MUST categorize the "implant_location" into EXACTLY ONE of the following 19 
 - Right Foot
 - Left Foot
 
-Rules for Location Mapping:
-1. Infer the location using standard clinical knowledge if not explicit. You MUST map devices to the 19 allowed list above (e.g., ICD -> Heart, Pacemaker -> Heart, Sapien 3 valve -> Heart, AAA Stent Graft -> Abdomen, VP Shunt -> Brain). Never output terms like "Right ventricle" or "Aortic valve".
-2. Pay strict attention to the patient's "Left" or "Right" side mentioned in the text.
+CRITICAL NO-LEAKAGE LOCATION CONSTRAINTS:
+1. NEVER output concatenated strings, raw anatomical sub-regions, or internal terms (e.g., DO NOT output 'HeartPectoral region...', 'Structure of apex...', 'Unknown').
+2. Your output for "implant_location" MUST be EXACTLY ONE LITERAL STRING chosen from the 19 Allowed Locations List above. 
+3. If a device is placed in the "pectoral pocket", "RV apex", "right ventricle", or "subclavian vein" for a cardiac procedure, you MUST map it to "Heart".
+
+STRICT CONTEXTUAL MERGING & LIFECYCLE RULE:
+- Clinical notes often separate the narrative text (e.g., "inserted pulse generator and ventricular lead") from a specifications/settings block at the end (e.g., "[Settings] IMPLANT DEVICE: Sigma, model #: 12345").
+- You MUST cross-reference and MERGE the generic terms from the narrative text with the specific model/serial numbers from the settings block into a SINGLE JSON object. Do NOT create separate objects for them.
+- If the narrative describes a device being currently implanted, any specific model name (e.g., "Sigma") or lead specifications listed in the settings block for that device MUST inherit the status "CURRENT".
 
 STRICT TEMPORAL REPLACEMENT RULE:
 If a device was previously implanted and then REMOVED or REPLACED by a new device, you MUST output TWO separate JSON objects: one for the old removed device (NOT CURRENT) and one for the new active device (CURRENT).
 
-STRICT DEVICE LIFECYCLE MERGING RULE:
-- Do NOT create a new separate JSON object for every single timeline event (implantation, replacement, removal) if they clearly refer to the SAME device lineage or slot.
-- For example, if a note says "2010: ICD implanted", "2018: ICD replaced", and "2022: Old ICD removed", this represents the lifecycle of ONE device slot, NOT three different devices.
-- You MUST consolidate this lineage into a maximum of TWO JSON objects:
-  1) One "NOT CURRENT" object representing the historical/old device (combining the 2010 implantation and its subsequent 2018 replacement/2022 removal events into a single history. Put all these related timeline sentences together into its "supporting_text").
-  2) One "CURRENT" object representing the active replacement device implanted in 2018.
-- NEVER generate a third independent JSON object for sentences like "Old ICD removed" if it is obviously describing the fate of the previously mentioned old ICD. Merge that context into the historical device's object.
-
-🎯 TARGETED FEW-SHOT EXAMPLE (Strict Chronology & Location Match):
-Clinical note: "The patient previously underwent ICD implantation in 2010. The device was removed in 2017 due to infection. A replacement ICD was implanted in 2018. In 2021, TAVR was performed using a Sapien 3 valve. AAA repair with Gore Excluder graft was completed in 2022. Family history is notable for a pacemaker in the patient's father. A leadless pacemaker implantation is planned next month."
+🎯 TARGETED FEW-SHOT EXAMPLE (Narrative + Settings Cross-Reference & Strict Location):
+Clinical note:
+"A 65-year-old male underwent urgent permanent pacemaker insertion. Under fluoroscopy, the ventricular lead was screwed into the right ventricle apex. The pulse generator was then connected and inserted into the left pectoral pocket. 
+[Pacemaker Settings]
+IMPLANT DEVICE: Pulse Generator Model Name: Gamma, model #: 999
+VENTRICLE LEAD: Model #: 888 (steroid eluting lead)"
 
 Expected Output:
 {
   "devices": [
     {
-      "device_name": "ICD",
-      "canonical_device_name": "ICD",
+      "device_name": "Pulse Generator Model Name: Gamma, model #: 999",
+      "canonical_device_name": "Cardiac Pacemaker",
       "device_size": "",
       "implant_location": "Heart",
-      "implant_date": "2010",
-      "implant_status": "NOT CURRENT",
-      "supporting_text": "previously underwent ICD implantation in 2010. The device was removed in 2017"
+      "implant_date": "CURRENT_TIME",
+      "implant_status": "CURRENT",
+      "supporting_text": "permanent pacemaker insertion. The pulse generator was then connected and inserted into the left pectoral pocket. IMPLANT DEVICE: Pulse Generator Model Name: Gamma, model #: 999"
     },
     {
-      "device_name": "Replacement ICD",
-      "canonical_device_name": "ICD",
+      "device_name": "Ventricle Lead: Model #: 888",
+      "canonical_device_name": "Pacemaker Lead",
       "device_size": "",
       "implant_location": "Heart",
-      "implant_date": "2018",
+      "implant_date": "CURRENT_TIME",
       "implant_status": "CURRENT",
-      "supporting_text": "A replacement ICD was implanted in 2018"
-    },
-    {
-      "device_name": "Sapien 3 valve",
-      "canonical_device_name": "Transcatheter Aortic Valve Prosthesis",
-      "device_size": "",
-      "implant_location": "Heart",
-      "implant_date": "2021",
-      "implant_status": "CURRENT",
-      "supporting_text": "TAVR was performed using a Sapien 3 valve"
-    },
-    {
-      "device_name": "Gore Excluder graft",
-      "canonical_device_name": "AAA Stent Graft",
-      "device_size": "",
-      "implant_location": "Abdomen",
-      "implant_date": "2022",
-      "implant_status": "CURRENT",
-      "supporting_text": "AAA repair with Gore Excluder graft was completed in 2022"
+      "supporting_text": "the ventricular lead was screwed into the right ventricle apex. VENTRICLE LEAD: Model #: 888 (steroid eluting lead)"
     }
   ]
 }
@@ -120,7 +103,7 @@ Output format:
 
 Final Rules:
 1. Extract both old removed devices (NOT CURRENT) and new devices (CURRENT) as completely separate objects.
-2. Use ONLY strings from the 19 Allowed Locations List for "implant_location".
+2. Use ONLY literal strings from the 19 Allowed Locations List for "implant_location". No concatenations.
 3. CRITICAL EMERGENCY RULE: If the clinical note mentions 'RCA' (e.g., 'deployed RCA'), 'RCA' stands for 'Right Coronary Artery'. You MUST set "implant_location" to "Heart". NEVER output 'RCA' or 'Root Cause Analysis' in the JSON object.
 4. Return valid JSON only. No explanations, no markdown blocks.
 
