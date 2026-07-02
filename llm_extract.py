@@ -13,6 +13,8 @@ from review_device import review_device
 BASE_DIR = Path(__file__).parent
 ALLOWED_SEMANTIC_TYPES = ["Medical Device", "Manufactured Object", "Drug Delivery Device"]
 
+MODEL_NAME = "llama-3.3-70b-versatile"
+
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
 if not GROQ_API_KEY:
     try:
@@ -23,7 +25,8 @@ if not GROQ_API_KEY:
 client = Groq(api_key=GROQ_API_KEY)
 
 
-def chunk_text(text, max_chars=1200):
+def chunk_text(text, max_chars=8000):
+
     paragraphs = text.split('\n')
     chunks = []
     current_chunk = []
@@ -57,7 +60,7 @@ def extract_device_raw(chunk_text):
 
     try:
         completion = client.chat.completions.create(
-            model="llama-3.1-8b-instant",  
+            model=MODEL_NAME,  
             messages=[{"role": "user", "content": prompt}],
             temperature=0.0,
             max_tokens=3000,
@@ -65,7 +68,7 @@ def extract_device_raw(chunk_text):
         )
         result = completion.choices[0].message.content.strip()
     except Exception as e:
-        st.error(f"🚨 [Step 1 원인 분석] Groq API 호출 실패: {e}")
+        st.error(f" [Step 1 원인 분석] Groq API 호출 실패: {e}")
         result = '{"devices": []}'
 
     if not result.endswith("}") and not result.endswith("```"):
