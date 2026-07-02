@@ -13,7 +13,7 @@ from review_device import review_device
 BASE_DIR = Path(__file__).parent
 ALLOWED_SEMANTIC_TYPES = ["Medical Device", "Manufactured Object", "Drug Delivery Device"]
 
-# 🌟 Groq 최강의 70B 모델 고정
+# Groq 최강의 70B 모델 고정
 MODEL_NAME = "llama-3.3-70b-versatile"
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
@@ -27,10 +27,6 @@ client = Groq(api_key=GROQ_API_KEY)
 
 
 def chunk_text(text, max_chars=8000):
-    """
-    🌟 Llama-3.3-70B 모델은 128K 대용량을 지원하므로 쪼갤 필요가 없습니다.
-    상한선을 8000자로 늘려 줄글과 하단 세팅 테이블이 찢어지는 현상을 방어합니다.
-    """
     paragraphs = text.split('\n')
     chunks = []
     current_chunk = []
@@ -52,7 +48,6 @@ def chunk_text(text, max_chars=8000):
 
 
 def extract_device_raw(chunk_text):
-
     prompt_path = BASE_DIR / "prompt_extract.txt"
     with open(prompt_path, encoding="utf-8") as f:
         prompt_template = f.read()
@@ -143,44 +138,15 @@ def process_single_chunk(chunk):
         device["synonyms"] = umls.get("synonyms", [])
         device["snomed_id"] = umls.get("snomed_id", "")
 
-        # 🌟 [여기서부터 위치 오염 방어 필터 가동] 🌟
         raw_location = device.get("implant_location", "").strip()
         device["location_cui"] = ""
 
-        # 논문용 19대 공식 대분류 기준 정의
-        ALLOWED_LOCATIONS = [
-            "Brain", "Neck", "Cervical Spine", "Thoracic Spine", "Lumbar Spine",
-            "Heart", "Abdomen", "Right Shoulder", "Left Shoulder", "Right Elbow",
-            "Left Elbow", "Right Hand", "Left Hand", "Right Pelvis (Femoral Head)",
-            "Left Pelvis (Femoral Head)", "Right Knee", "Left Knee", "Right Foot", "Left Foot"
-        ]
-
-        # 가드레일 1: 심장 시술 관련 미세 용어들이 발견되면 UMLS 거치지 않고 'Heart'로 다이렉트 고정
-        cardiac_keywords = ["heart", "ventricle", "apex", "atrial", "pacer pocket", "sigma", "aortic", "mitral", "coronary", "rca", "lad", "cx"]
-        
-        if any(kw in raw_location.lower() for kw in cardiac_keywords):
-            device["implant_location"] = "Heart"
-            device["location_cui"] = "C0018787"  # Heart의 표준 UMLS CUI 고정
-            
-        elif raw_location and raw_location.lower() not in ["none", "null", "nan", "unknown"]:
+        if raw_location and raw_location.lower() not in ["none", "null", "nan", "unknown"]:
             try:
                 loc_umls = search_umls(raw_location)
                 if loc_umls and loc_umls.get("preferred_name"):
-                    pref_name = loc_umls.get("preferred_name")
-                    
-                    # 가드레일 2: UMLS가 찾아준 공식 명칭이 19대 표준 분류에 정확히 속할 때만 승인
-                    if pref_name in ALLOWED_LOCATIONS:
-                        device["implant_location"] = pref_name
-                        device["location_cui"] = loc_umls.get("cui", "")
-                    else:
-                        # 'Structure of apex...'처럼 19대 분류를 벗어난 뇌절 표준어라면 거부하고 
-                        # 원래 LLM이 판단한 텍스트 기반으로 19대 매핑 유도
-                        matched_allowed = next((loc for loc in ALLOWED_LOCATIONS if loc.lower() in raw_location.lower()), None)
-                        if matched_allowed:
-                            device["implant_location"] = matched_allowed
-                        else:
-                            device["implant_location"] = raw_location
-                        device["location_cui"] = loc_umls.get("cui", "")
+                    device["implant_location"] = loc_umls.get("preferred_name")
+                    device["location_cui"] = loc_umls.get("cui", "")
                 else:
                     device["implant_location"] = raw_location
                     device["location_cui"] = "NO_MATCH"
@@ -232,6 +198,18 @@ def run_pipeline(note):
 
     if final_result is None or not isinstance(final_result, dict):
         final_result = {"devices": []}
+
+    # 🌟 [무적의 최후 가드레일 설치] 🌟
+    # FDA Resolver 등 외부 모듈이 값을 다 덮어쓴 후, 파이프라인을 완전히 "탈출하기 직전"에 최종 필터링을 적용합니다.
+    cardiac_keywords = ["heart", "ventricle", "apex", "atrial", "pacer", "pocket", "sigma", "aortic", "mitral", "coronary", "rca", "lad", "cx", "structure of apex"]
+    
+    for device in final_result.get("devices", []):
+        current_loc = str(device.get("implant_location", "")).strip().lower()
+        
+        # 위치 텍스트에 심장, 우심실, 어펙스 등의 단어가 포함되어 있다면 예외 없이 'Heart' 대분류로 밀어버립니다.
+        if any(kw in current_loc for kw in cardiac_keywords):
+            device["implant_location"] = "Heart"
+            device["location_cui"] = "C0018787"  # Heart의 고유 CUI 매핑
 
     return final_result
 
