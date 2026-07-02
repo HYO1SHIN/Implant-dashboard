@@ -13,7 +13,6 @@ from review_device import review_device
 BASE_DIR = Path(__file__).parent
 ALLOWED_SEMANTIC_TYPES = ["Medical Device", "Manufactured Object", "Drug Delivery Device"]
 
-# Groq 최강의 70B 모델 고정
 MODEL_NAME = "llama-3.3-70b-versatile"
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
@@ -27,6 +26,7 @@ client = Groq(api_key=GROQ_API_KEY)
 
 
 def chunk_text(text, max_chars=8000):
+
     paragraphs = text.split('\n')
     chunks = []
     current_chunk = []
@@ -48,6 +48,7 @@ def chunk_text(text, max_chars=8000):
 
 
 def extract_device_raw(chunk_text):
+
     prompt_path = BASE_DIR / "prompt_extract.txt"
     with open(prompt_path, encoding="utf-8") as f:
         prompt_template = f.read()
@@ -67,7 +68,7 @@ def extract_device_raw(chunk_text):
         )
         result = completion.choices[0].message.content.strip()
     except Exception as e:
-        st.error(f" 🚨 [Step 1 원인 분석] Groq API 호출 실패: {e}")
+        st.error(f"🚨 [Step 1 원인 분석] Groq API 호출 실패: {e}")
         result = '{"devices": []}'
 
     if not result.endswith("}") and not result.endswith("```"):
@@ -198,18 +199,6 @@ def run_pipeline(note):
 
     if final_result is None or not isinstance(final_result, dict):
         final_result = {"devices": []}
-
-    # 🌟 [무적의 최후 가드레일 설치] 🌟
-    # FDA Resolver 등 외부 모듈이 값을 다 덮어쓴 후, 파이프라인을 완전히 "탈출하기 직전"에 최종 필터링을 적용합니다.
-    cardiac_keywords = ["heart", "ventricle", "apex", "atrial", "pacer", "pocket", "sigma", "aortic", "mitral", "coronary", "rca", "lad", "cx", "structure of apex"]
-    
-    for device in final_result.get("devices", []):
-        current_loc = str(device.get("implant_location", "")).strip().lower()
-        
-        # 위치 텍스트에 심장, 우심실, 어펙스 등의 단어가 포함되어 있다면 예외 없이 'Heart' 대분류로 밀어버립니다.
-        if any(kw in current_loc for kw in cardiac_keywords):
-            device["implant_location"] = "Heart"
-            device["location_cui"] = "C0018787"  # Heart의 고유 CUI 매핑
 
     return final_result
 
