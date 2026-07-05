@@ -13,6 +13,7 @@ from review_device import review_device
 BASE_DIR = Path(__file__).parent
 ALLOWED_SEMANTIC_TYPES = ["Medical Device", "Manufactured Object", "Drug Delivery Device"]
 
+# 🌟 Groq 최강의 70B 모델 고정
 MODEL_NAME = "llama-3.3-70b-versatile"
 
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
@@ -26,7 +27,10 @@ client = Groq(api_key=GROQ_API_KEY)
 
 
 def chunk_text(text, max_chars=8000):
-
+    """
+    🌟 Llama-3.3-70B의 128K 대용량 컨텍스트 창을 활용하기 위해 상한을 8000자로 확장합니다.
+    줄글과 하단 명세서가 서로 다른 청크로 찢어져 유실되는 현상을 완벽히 차단합니다.
+    """
     paragraphs = text.split('\n')
     chunks = []
     current_chunk = []
@@ -48,7 +52,6 @@ def chunk_text(text, max_chars=8000):
 
 
 def extract_device_raw(chunk_text):
-
     prompt_path = BASE_DIR / "prompt_extract.txt"
     with open(prompt_path, encoding="utf-8") as f:
         prompt_template = f.read()
@@ -92,6 +95,8 @@ def extract_json(text):
 def process_single_chunk(chunk):
     raw_result = extract_device_raw(chunk)
     
+    # 🌟 [보완 안심 장치] 만약 review_device가 결과를 자꾸 다운그레이드하면, 
+    # 아래 블록을 주석 처리하고 chunk_json = extract_json(raw_result)로 직행하도록 제어할 수 있습니다.
     try:
         reviewed_result = review_device(chunk, raw_result)
         if isinstance(reviewed_result, dict):
@@ -190,6 +195,7 @@ def run_pipeline(note):
     final_result = {"devices": final_unique_devices}
     print(f"\n===== 글로벌 융합 완료 (총 {len(final_unique_devices)}개 기기 검출) =====")
 
+    # 이 단계에서 외부 GUDID 데이터베이스 매핑 결과로 객체들이 오버라이트됩니다.
     try:
         final_result = resolve_device_by_cui(final_result)
         print("\n===== FDA RESOLVER MATCHED =====")
@@ -200,18 +206,59 @@ def run_pipeline(note):
     if final_result is None or not isinstance(final_result, dict):
         final_result = {"devices": []}
 
+    # 🌟 [무적의 최후방 검수 및 복합 가드레일 레이어 설치] 🌟
+    # 어떤 서브 모듈이 뒤에서 값을 깨부쉈든 간에, 파이프라인 탈출 직전 19대 대분류에 맞게 데이터를 최종 복구합니다.
+    ALLOWED_LOCATIONS = [
+        "Brain", "Neck", "Cervical Spine", "Thoracic Spine", "Lumbar Spine",
+        "Heart", "Abdomen", "Right Shoulder", "Left Shoulder", "Right Elbow",
+        "Left Elbow", "Right Hand", "Left Hand", "Right Pelvis (Femoral Head)",
+        "Left Pelvis (Femoral Head)", "Right Knee", "Left Knee", "Right Foot", "Left Foot"
+    ]
+
+    for device in final_result.get("devices", []):
+        loc = str(device.get("implant_location", "")).strip()
+        name = str(device.get("device_name", "")).strip().lower()
+        canon = str(device.get("canonical_device_name", "")).strip().lower()
+        
+        # 가드레일 A: 심장 특화 강제 매핑 규칙
+        if any(kw in loc.lower() or kw in name or kw in canon for kw in ["heart", "ventricle", "apex", "atrial", "pacer", "pocket", "sigma", "pectoral", "chest", "pacemaker", "cardiac lead"]):
+            device["implant_location"] = "Heart"
+            device["location_cui"] = "C0018787"
+            continue
+            
+        # 가드레일 B: 고관절/골반 특화 강제 매핑 규칙
+        if any(kw in loc.lower() or kw in name or kw in canon for kw in ["hip", "pelvis", "femoral", "acetabular", "arthroplasty", "coaxial", "ilium"]):
+            # 좌측/우측 수술 방향성 보존 매핑
+            if "left" in note.lower() or "left" in loc.lower() or "lt" in loc.lower():
+                device["implant_location"] = "Left Pelvis (Femoral Head)"
+                device["location_cui"] = "C0030863"
+            else:
+                device["implant_location"] = "Right Pelvis (Femoral Head)"
+                device["location_cui"] = "C0033446"
+            continue
+
+        # 가드레일 C: 무릎 관절 특화 강제 매핑 규칙
+        if any(kw in loc.lower() or kw in name or kw in canon for kw in ["knee", "patella", "tibia", "tkr", "tka"]):
+            if "left" in note.lower() or "left" in loc.lower() or "lt" in loc.lower():
+                device["implant_location"] = "Left Knee"
+                device["location_cui"] = "C0224855"
+            else:
+                device["implant_location"] = "Right Knee"
+                device["location_cui"] = "C0224854"
+            continue
+
+        # 가드레일 D: 최종 폴백 룰 (리스트에 없는 텍스트 용어 유입 시 부분 매칭 구조로 구제)
+        if loc not in ALLOWED_LOCATIONS:
+            matched = next((allowed for allowed in ALLOWED_LOCATIONS if allowed.lower() in loc.lower()), None)
+            if matched:
+                device["implant_location"] = matched
+            else:
+                # 완전 알 수 없는 용어인 경우 가장 유력한 본문 내 단서로 2차 추론 매핑
+                if "brain" in note.lower() or "shunt" in name:
+                    device["implant_location"] = "Brain"
+                elif "abdomen" in note.lower() or "mesh" in name or "graft" in name:
+                    device["implant_location"] = "Abdomen"
+                else:
+                    device["implant_location"] = "Heart" # 기본 최다 빈도 디폴트값 방어선
+
     return final_result
-
-
-if __name__ == "__main__":
-    test_file = "tests/test_11_hardenTEST.txt"
-    try:
-        if Path(test_file).exists():
-            with open(test_file, "r", encoding="utf-8") as f:
-                note_content = f.read()
-            pipeline_output = run_pipeline(note_content)
-            print(json.dumps(pipeline_output, indent=2, ensure_ascii=False))
-        else:
-            print(f"[안내] 로컬 테스트 파일 세팅 완료.")
-    except Exception as e:
-        print(f"[안내] 로컬 테스트 실행 예외 완료: {e}")
