@@ -22,27 +22,48 @@ def review_device(note, extracted_json):
         except json.JSONDecodeError:
             return {"devices": []}
 
-    # 💥 Llama-3.3-70b의 의학적 추론 능력을 극한으로 끌어올리는 초정밀 프롬프트 아키텍처
+    # 🌟 [업그레이드] Step 1의 결합 및 위치 규칙을 100% 동기화한 초정밀 검수 프롬프트 아키텍처
     prompt = f"""You are an expert clinical data scientist specializing in implantable medical devices.
-Review and refine the extracted device list based on the original clinical note.
+Review and refine the extracted device list based on the original clinical note to maximize compliance and accuracy.
 
-[CRITICAL CLINICAL RULES]
-1. STRICT PATIENT FOCUS: ONLY extract devices implanted in the PATIENT. 
-   - Check the section carefully. Strictly IGNORE any devices belonging to family members (e.g., 'Mother pacemaker', 'Father had pacemaker' -> NEVER EXTRACT).
-2. EXPLANTED/REMOVED DEVICES: Do NOT delete historical or removed devices. 
-   - If a device was 'removed', 'explanted', or 'replaced', KEEP the device in the list but set its "implant_status" to "NOT CURRENT".
-3. CARDIOLOGY ABBREVIATIONS: 
-   - 'RCA' stands for 'Right Coronary Artery' (Location). NEVER translate it to 'Root Cause Analysis'.
-   - 'LAD' stands for 'Left Anterior Descending artery'.
-4. NO FUTURE/PLANNED DEVICES: If a device is only being 'considered' or 'planned' but not yet implanted, do NOT extract it.
+[CRITICAL CLINICAL & MERGING RULES]
+1. STRICT PATIENT FOCUS: ONLY extract devices implanted in the PATIENT. Strictly IGNORE family history.
+2. EXPLANTED/REMOVED DEVICES: Do NOT delete historical or removed devices. Set "implant_status" to "NOT CURRENT".
+3. NO FUTURE/PLANNED DEVICES: Do NOT extract planned or considered procedures.
+4. 🌟 STRICT DEVICE CONSOLIDATION: Generic names in the text (e.g., "permanent pacemaker") and specific specs in the settings block (e.g., "Pulse Generator: Sigma, model #: 12345") represent the SAME device instance. 
+   - You MUST keep them MERGED into a single object. 
+   - NEVER split a consolidated device object back into separate generic and specific entries.
+
+[STRICT IMPLANT LOCATION RULE]
+For "implant_location", you MUST ensure the value belongs to EXACTLY ONE of the following 19 predefined anatomical regions. Do NOT let it hallucinate raw text terms like 'pectoral pocket' or 'lateral region':
+- Brain
+- Neck
+- Cervical Spine
+- Thoracic Spine
+- Lumbar Spine
+- Heart
+- Abdomen
+- Right Shoulder
+- Left Shoulder
+- Right Elbow
+- Left Elbow
+- Right Hand
+- Left Hand
+- Right Pelvis (Femoral Head)
+- Left Pelvis (Femoral Head)
+- Right Knee
+- Left Knee
+- Right Foot
+- Left Foot
+
+* Rule: Any cardiac/pacemaker components (lead, pulse generator, pocket, apex) MUST remain mapped to "Heart".
 
 Rules for Fields:
-- device_name: Exact product or device name from the note.
-- canonical_device_name: Normalized generic implant concept.
-- implant_status: Must be "CURRENT" (active) or "NOT CURRENT" (removed/explanted).
+- device_name: Detailed product name including model/serial numbers.
+- canonical_device_name: Normalized generic concept (e.g., Cardiac Pacemaker, Pacemaker Lead).
+- implant_status: "CURRENT" or "NOT CURRENT".
 
-IMPORTANT:
-Always return a JSON OBJECT conforming to this format:
+IMPORTANT: Always return a JSON OBJECT conforming to this format. No conversational text.
 {{
   "devices":[
     {{
@@ -57,12 +78,10 @@ Always return a JSON OBJECT conforming to this format:
   ]
 }}
 
-Never return explanations or any text outside the JSON object. Return JSON only.
-
 Clinical Note:
 {note}
 
-Extracted Devices:
+Extracted Devices to Review:
 {json.dumps(extracted_json, indent=2)}
 """
 
