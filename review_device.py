@@ -22,7 +22,6 @@ def review_device(note, extracted_json):
         except json.JSONDecodeError:
             return {"devices": []}
 
-    # 🌟 [업그레이드] Step 1의 결합 및 위치 규칙을 100% 동기화한 초정밀 검수 프롬프트 아키텍처
     prompt = f"""You are an expert clinical data scientist specializing in implantable medical devices.
 Review and refine the extracted device list based on the original clinical note to maximize compliance and accuracy.
 
@@ -30,7 +29,7 @@ Review and refine the extracted device list based on the original clinical note 
 1. STRICT PATIENT FOCUS: ONLY extract devices implanted in the PATIENT. Strictly IGNORE family history.
 2. EXPLANTED/REMOVED DEVICES: Do NOT delete historical or removed devices. Set "implant_status" to "NOT CURRENT".
 3. NO FUTURE/PLANNED DEVICES: Do NOT extract planned or considered procedures.
-4. 🌟 STRICT DEVICE CONSOLIDATION: Generic names in the text (e.g., "permanent pacemaker") and specific specs in the settings block (e.g., "Pulse Generator: Sigma, model #: 12345") represent the SAME device instance. 
+4. STRICT DEVICE CONSOLIDATION: Generic names in the text (e.g., "permanent pacemaker") and specific specs in the settings block (e.g., "Pulse Generator: Sigma, model #: 12345") represent the SAME device instance. 
    - You MUST keep them MERGED into a single object. 
    - NEVER split a consolidated device object back into separate generic and specific entries.
 
