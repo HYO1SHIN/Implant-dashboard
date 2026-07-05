@@ -2,19 +2,15 @@ from pathlib import Path
 import pandas as pd
 from rapidfuzz import fuzz, process
 
-
-LOCAL_DATA_DIR = Path(r"C:\Users\신효원\Desktop\생성형AI수업\DATA\implant_dashboard\data")
-RELATIVE_DATA_DIR = Path(__file__).parent / "data"
 CURRENT_DIR = Path(__file__).parent
+RELATIVE_DATA_DIR = CURRENT_DIR / "data"
 
-if LOCAL_DATA_DIR.exists():
-    DATA_DIR = LOCAL_DATA_DIR
-elif RELATIVE_DATA_DIR.exists():
+if RELATIVE_DATA_DIR.exists():
     DATA_DIR = RELATIVE_DATA_DIR
 else:
     DATA_DIR = CURRENT_DIR
 
-print(f"🚀 Load implant DB chunks from: {DATA_DIR}")
+print(f"Load implant DB chunks from: {DATA_DIR}")
 
 chunk_list = []
 for i in range(15):
@@ -30,12 +26,12 @@ for i in range(15):
 
 if chunk_list:
     device_db = pd.concat(chunk_list, ignore_index=True)
-    print(f"✅ 조각 병합 성공! 총 복원 행(Rows): {len(device_db)}")
+    print(f"조각 병합 성공! 총 복원 행(Rows): {len(device_db)}")
 else:
     ORIGINAL_CSV = DATA_DIR / "implantable_device_master_cui.csv"
     if ORIGINAL_CSV.exists():
         device_db = pd.read_csv(str(ORIGINAL_CSV), dtype=str, low_memory=False)
-        print(f"✅ 원본 파일 직접 로드 성공! 행(Rows): {len(device_db)}")
+        print(f"원본 파일 직접 로드 성공! 행(Rows): {len(device_db)}")
     else:
         raise FileNotFoundError(
             f"데이터 조각(master_part_*.csv) 또는 원본 파일이 경로에 존재하지 않습니다: {DATA_DIR}"
@@ -110,6 +106,9 @@ def get_best_match(candidate, choices):
 
 
 def resolve_device_by_product(device_json):
+    if device_json is None or not isinstance(device_json, dict):
+        return {"devices": []}
+
     devices = device_json.get("devices", [])
 
     for device in devices:
@@ -138,7 +137,6 @@ def resolve_device_by_product(device_json):
                     best_score = score
                     best_method = "PRODUCTCODE"
 
-        # BRAND 매칭 (1단계 점수가 80점 미만일 때만 실행)
         if best_score < 80 and brand_list:
             for candidate in candidates:
                 result = get_best_match(candidate, brand_list)
@@ -151,7 +149,6 @@ def resolve_device_by_product(device_json):
                     best_score = score
                     best_method = "BRAND"
 
-        # NORMALIZED 매칭 (2단계 점수까지 80점 미만일 때만 실행)
         if best_score < 80 and normalized_list:
             for candidate in candidates:
                 result = get_best_match(candidate, normalized_list)
@@ -164,12 +161,35 @@ def resolve_device_by_product(device_json):
                     best_score = score
                     best_method = "NORMALIZED"
 
-        # 최소 임계값 70점 이상일 때만 저장
         if best_row is not None and best_score >= 70:
             fill_device_info(device, best_row, best_method, best_score)
         else:
             device["resolve_method"] = "UNRESOLVED"
             device["similarity_score"] = round(float(best_score), 1)
+
+
+    for device in devices:
+        loc = str(device.get("implant_location", "")).strip().lower()
+        name = str(device.get("device_name", "")).strip().lower()
+        canon = str(device.get("canonical_device_name", "")).strip().lower()
+        
+        if any(kw in loc or kw in name or kw in canon for kw in ["heart", "ventricle", "apex", "atrial", "pacer", "pocket", "sigma", "pectoral", "chest", "pacemaker", "cardiac lead"]):
+            device["implant_location"] = "Heart"
+            continue
+            
+        if any(kw in loc or kw in name or kw in canon for kw in ["hip", "pelvis", "femoral", "acetabular", "arthroplasty", "coaxial", "ilium"]):
+            if "left" in loc or "lt" in loc or "left" in name:
+                device["implant_location"] = "Left Pelvis (Femoral Head)"
+            else:
+                device["implant_location"] = "Right Pelvis (Femoral Head)"
+            continue
+
+        if any(kw in loc or kw in name or kw in canon for kw in ["knee", "patella", "tibia", "tkr", "tka"]):
+            if "left" in loc or "lt" in loc or "left" in name:
+                device["implant_location"] = "Left Knee"
+            else:
+                device["implant_location"] = "Right Knee"
+            continue
 
     return device_json
 
