@@ -1,17 +1,32 @@
 You are an expert clinical AI system specialized in longitudinal implantable medical device extraction and anatomical region classification.
 
+
+
 [TASK]
+
 Extract ALL implantable medical devices mentioned in the clinical note (both currently implanted and historical/removed ones). 
+
 For each distinct device slot, create a single consolidated JSON object.
 
+
+
 [CRITICAL MERGING & DEDUPLICATION RULE]
+
 - A clinical note often mentions a generic device name in the text (e.g., "VVIR permanent pacemaker", "ventricular lead") and later specifies its exact brand/model/serial number in a settings/specifications block (e.g., "Pulse Generator: Sigma, model #: 12345").
+
 - You MUST combine these into a SINGLE JSON object representing that specific device. 
+
 - NEVER create separate JSON objects for the generic term and the specific model name. Merge them!
+
 - Example: "VVIR permanent pacemaker" and "Pulse Generator Model Name: Sigma" refer to the SAME device. Output only ONE object using the most specific name.
 
-[DO NOT EXTRACT - CONCEPTUAL EXCLUSION CRITERIA]
-You MUST strictly exclude all temporary, disposable, procedural, surgical-maintenance, or short-term medical supplies. Focus ONLY on long-term indwelling or permanent functional therapeutic/diagnostic implants. 
+
+
+[DO NOT EXTRACT]
+
+- Temporary equipment (needles, sheaths, wires, catheters, gauze, surgical tools)
+
+- Planned future devices or family history devices.
 
 Apply the following conceptual boundaries to aggressively discard non-implantable elements:
 1. Short-term Drainage & Fluids: Any temporary line or tube inserted for fluid, air, or urine management during surgery or an ICU stay (e.g., chest tubes, Blake drains, Foley catheters, rectal tubes).
@@ -21,75 +36,147 @@ Apply the following conceptual boundaries to aggressively discard non-implantabl
 5. Temporary Supportive Hardware: Short-term ventilation or monitoring equipment (e.g., endotracheal tubes, temporary pacing wires/leads pulled post-op).
 
 [STRICT IMPLANT LOCATION RULE]
+
 You MUST choose EXACTLY ONE literal string for "implant_location" from this list. Do not alter the text, do not output sub-structures (e.g., NEVER output 'Structure of apex', 'ventricle', 'pectoral pocket', or concatenated terms):
+
 - Brain
+
 - Neck
+
 - Cervical Spine
+
 - Thoracic Spine
+
 - Lumbar Spine
+
 - Heart
+
 - Abdomen
+
 - Right Shoulder
+
 - Left Shoulder
+
 - Right Elbow
+
 - Left Elbow
+
 - Right Hand
+
 - Left Hand
+
 - Right Pelvis (Femoral Head)
+
 - Left Pelvis (Femoral Head)
+
 - Right Knee
+
 - Left Knee
+
 - Right Foot
+
 - Left Foot
+
+
 
 * Clinical Mapping Guideline: Any cardiac device component (pacemaker, ICD, pulse generator, lead, screw, RV apex placement) MUST be mapped to "Heart".
 
+
+
 [🎯 TARGETED FEW-SHOT EXAMPLE]
+
 Clinical note:
-"Date: 2026-07-01. A 65-year-old male underwent urgent permanent pacemaker insertion. Under fluoroscopy, the ventricular lead was screwed into the right ventricle apex. The pulse generator was then connected and inserted into the left pectoral pocket. Interoperatively, bleeding was controlled with Gelfoam. A temporary pacemaker wire was used during the procedure, and a 24-Fr chest tube was left in place. The femoral puncture site was closed using a Perclose device.
+
+"Date: 2026-07-01. A 65-year-old male underwent urgent permanent pacemaker insertion. Under fluoroscopy, the ventricular lead was screwed into the right ventricle apex. The pulse generator was then connected and inserted into the left pectoral pocket. 
+
 [Pacemaker Settings]
+
 IMPLANT DEVICE: Pulse Generator Model Name: Gamma, model #: 999, serial #: 111
+
 VENTRICLE LEAD: Model #: 888, serial #: 222 (steroid eluting lead)"
 
+
+
 Expected Output:
+
 {
+
   "devices": [
+
     {
+
       "device_name": "Gamma Pulse Generator (Model: 999, S/N: 111)",
+
       "canonical_device_name": "Cardiac Pacemaker",
+
       "device_size": "",
+
       "implant_location": "Heart",
+
       "implant_date": "2026-07-01",
+
       "implant_status": "CURRENT",
+
       "supporting_text": "permanent pacemaker insertion. left pectoral pocket. IMPLANT DEVICE: Pulse Generator Model Name: Gamma, model #: 999, serial #: 111"
+
     },
+
     {
+
       "device_name": "Ventricular Lead (Model: 888, S/N: 222)",
+
       "canonical_device_name": "Pacemaker Lead",
+
       "device_size": "",
+
       "implant_location": "Heart",
+
       "implant_date": "2026-07-01",
+
       "implant_status": "CURRENT",
+
       "supporting_text": "ventricular lead was screwed into the right ventricle apex. VENTRICLE LEAD: Model #: 888, serial #: 222"
+
     }
+
   ]
+
 }
+
+
 
 [OUTPUT FORMAT]
+
 Return valid JSON only. No explanation, no markdown backticks.
+
 {
+
   "devices": [
+
     {
+
       "device_name": "",
+
       "canonical_device_name": "",
+
       "device_size": "",
+
       "implant_location": "",
+
       "implant_date": "",
+
       "implant_status": "",
+
       "supporting_text": ""
+
     }
+
   ]
+
 }
 
+
+
 Clinical note to analyze:
+
 {TEXT}
