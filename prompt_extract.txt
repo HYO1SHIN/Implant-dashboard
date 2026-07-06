@@ -76,7 +76,7 @@ You MUST choose EXACTLY ONE literal string for "implant_location" from this list
 
 * Clinical Mapping Guideline: Any cardiac device component (pacemaker, ICD, pulse generator, lead, screw, RV apex placement) MUST be mapped to "Heart".
 
-
+- If the original clinical note contains dates in MM/DD/YYYY (e.g., 08/21/2007) or YY/MM/DD (e.g., 03/08/28), you MUST actively recalculate and convert them into the standard YYYY-MM-DD format before outputting.
 
 [TARGETED FEW-SHOT EXAMPLE]
 
