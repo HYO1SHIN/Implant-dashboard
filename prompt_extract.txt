@@ -10,7 +10,7 @@ For each distinct device slot, create a single consolidated JSON object.
 - NEVER create separate JSON objects for the generic term and the specific model name. Merge them!
 - Example: "VVIR permanent pacemaker" and "Pulse Generator Model Name: Sigma" refer to the SAME device. Output only ONE object using the most specific name.
 
-[🔴 CRITICAL EXCLUSION & DELETION RULES - DO NOT EXTRACT]
+[CRITICAL EXCLUSION & DELETION RULES - DO NOT EXTRACT]
 You MUST strictly exclude all temporary, disposable, procedural, surgical-maintenance, or short-term medical supplies. Focus ONLY on long-term indwelling or permanent functional therapeutic/diagnostic implants. Completely drop and ignore the following categories:
 1. Short-term Drainage & Fluids: Any temporary line, tube, or catheter inserted for short-term fluid, air, or urine management (e.g., chest tubes, Blake drains, Foley catheters, rectal tubes, triple lumen catheters, arterial catheters/lines).
 2. Intraoperative Tools & Access Equipment: Disposable devices used to perform the procedure but completely removed before completion (e.g., needles, sheaths, trocars, guide wires, introducers, surgical tools).
@@ -18,7 +18,7 @@ You MUST strictly exclude all temporary, disposable, procedural, surgical-mainte
 4. Absorbable Topical Agents & Sponges: Bio-absorbable materials placed intraoperatively to control bleeding that naturally degrade (e.g., Gelfoam, Surgicel, bone wax, gelatin sponges).
 5. Planned future devices or family history devices.
 
-[🌟 STRICT DATE FORMATTING RULE]
+[STRICT DATE FORMATTING RULE]
 - You MUST strictly normalize and convert ALL "implant_date" values into ISO format: YYYY-MM-DD (e.g., 2007-08-21).
 - If the original clinical note contains dates in MM/DD/YYYY (e.g., 08/21/2007) or YY/MM/DD (e.g., 03/08/28), you MUST actively recalculate and convert them into the standard YYYY-MM-DD format before outputting. 
 - NEVER copy non-standard raw date formats directly from the note. Transform them!
