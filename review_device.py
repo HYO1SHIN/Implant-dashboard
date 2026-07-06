@@ -27,43 +27,31 @@ Your task is to review, refine, and aggressively clean the extracted device list
 
 [CRITICAL EXCLUSION & DELETION RULES - GATEKEEPER ROLE]
 You MUST act as a strict gatekeeper. If any device in the "Extracted Devices to Review" list falls into the following temporary/disposable categories, you MUST COMPLETELY DELETE and REMOVE it from the final JSON array. Do NOT retain them.
-
-1. ABSOLUTELY NO Topical Hemostatic Agents & Sponges: 
-   - Completely REMOVE materials that naturally degrade or are used just to stop bleeding during surgery (e.g., Gelfoam, Surgicel, gelatin sponge, bone wax, hemostatic matrix).
-2. ABSOLUTELY NO Wound Closure & Vascular Sealing Devices: 
-   - Completely REMOVE tools used solely to close blood vessels or skin incisions (e.g., Perclose, ProGlide, Angio-Seal, Mynx, sutures, staples, clips, surgical silk).
-3. ABSOLUTELY NO Short-term Drainage & Catheters: 
-   - Completely REMOVE temporary tubes meant for fluid/urine management during an ICU stay or surgery (e.g., Foley catheter, urinary lines, chest tubes, Blake drains, rectal tubes).
-4. ABSOLUTELY NO Intraoperative Access Equipment: 
-   - Completely REMOVE needles, sheaths, trocars, guide wires, introducers, or temporary pacing wires that are removed at the end of the procedure.
+1. ABSOLUTELY NO Topical Hemostatic Agents & Sponges (e.g., Gelfoam, Surgicel, bone wax).
+2. ABSOLUTELY NO Wound Closure & Vascular Sealing Devices (e.g., Perclose, ProGlide, Angio-Seal, sutures, clips).
+3. ABSOLUTELY NO Short-term Drainage & Catheters (e.g., Foley catheter, urinary lines, chest tubes, Blake drains).
+4. ABSOLUTELY NO Intraoperative Access Equipment (e.g., needles, sheaths, trocars, guide wires, temporary pacing wires).
 
 [CRITICAL CLINICAL & MERGING RULES]
 1. STRICT PATIENT FOCUS: ONLY extract devices implanted in the PATIENT. Ignore family history.
 2. EXPLANTED/REMOVED DEVICES: Keep historical or removed devices in the list, but set "implant_status" to "NOT CURRENT".
 3. NO FUTURE/PLANNED DEVICES: Do NOT extract planned or considered procedures.
-4. STRICT DEVICE CONSOLIDATION: Always keep generic text terms and specific serial/model specifications merged into a single device object. NEVER split them back.
+4. STRICT DEVICE CONSOLIDATION: Always keep generic text terms and specific serial/model specifications merged into a single device object.
+
+[STRICT DATE FORMATTING RULE]
+- You MUST strictly format ALL "implant_date" values into the ISO format: YYYY-MM-DD (e.g., 2007-08-21).
+- If the original clinical note or the extracted JSON contains dates in MM/DD/YYYY (e.g., 08/21/2007) or YY/MM/DD (e.g., 03/08/28), you MUST actively recalculate and convert them into the standard YYYY-MM-DD format before outputting.
 
 [STRICT IMPLANT LOCATION RULE]
-For "implant_location", you MUST enforce the value to match EXACTLY ONE of the following 19 regions. Do NOT allow raw anatomy text (e.g., 'pectoral pocket', 'right ventricle apex' -> map to 'Heart'):
-- Brain
-- Neck
-- Cervical Spine
-- Thoracic Spine
-- Lumbar Spine
-- Heart
-- Abdomen
-- Right Shoulder
-- Left Shoulder
-- Right Elbow
-- Left Elbow
-- Right Hand
-- Left Hand
-- Right Pelvis (Femoral Head)
-- Left Pelvis (Femoral Head)
-- Right Knee
-- Left Knee
-- Right Foot
-- Left Foot
+For "implant_location", you MUST enforce the value to match EXACTLY ONE of the following 19 regions:
+- Brain, Neck, Cervical Spine, Thoracic Spine, Lumbar Spine, Heart, Abdomen, Right Shoulder, Left Shoulder, Right Elbow, Left Elbow, Right Hand, Left Hand, Right Pelvis (Femoral Head), Left Pelvis (Femoral Head), Right Knee, Left Knee, Right Foot, Left Foot.
+* Rule: Any cardiac/pacemaker components MUST remain mapped to "Heart".
+
+Rules for Fields:
+- device_name: Detailed product name including model/serial numbers.
+- canonical_device_name: Normalized generic concept.
+- implant_date: MUST be strictly normalized to YYYY-MM-DD.
+- implant_status: "CURRENT" or "NOT CURRENT".
 
 IMPORTANT: Return a valid JSON OBJECT only. No conversational commentary, no markdown backticks.
 {{
@@ -83,7 +71,7 @@ IMPORTANT: Return a valid JSON OBJECT only. No conversational commentary, no mar
 Clinical Note:
 {note}
 
-Extracted Devices to Review (Filter and DELETE temporary items from here):
+Extracted Devices to Review (Filter out temporary items and STRICTOR DATE FORMAT TO YYYY-MM-DD):
 {json.dumps(extracted_json, indent=2)}
 """
 
