@@ -28,12 +28,7 @@ For each distinct device slot, create a single consolidated JSON object.
 
 - Planned future devices or family history devices.
 
-Apply the following conceptual boundaries to aggressively discard non-implantable elements:
-1. Short-term Drainage & Fluids: Any temporary line or tube inserted for fluid, air, or urine management during surgery or an ICU stay (e.g., chest tubes, Blake drains, Foley catheters, rectal tubes).
-2. Intraoperative Tools & Access Equipment: Disposable devices used to perform the procedure but completely removed before completion (e.g., needles, sheaths, trocars, guide wires, angiographic catheters, scalpels).
-3. Wound Closure & Vascular Hemostasis Devices: Materials used solely to close skin, fascia, or vessels, or to achieve immediate mechanical hemostasis (e.g., sutures, surgical silk, staples, clips, skin staples, or active closure devices like Perclose or ProGlide).
-4. Absorbable Topical Agents & Sponges: Bio-absorbable materials placed intraoperatively to control bleeding that naturally degrade (e.g., Gelfoam, Surgicel, bone wax, gelatin sponges).
-5. Temporary Supportive Hardware: Short-term ventilation or monitoring equipment (e.g., endotracheal tubes, temporary pacing wires/leads pulled post-op).
+
 
 [STRICT IMPLANT LOCATION RULE]
 
@@ -83,7 +78,7 @@ You MUST choose EXACTLY ONE literal string for "implant_location" from this list
 
 
 
-[🎯 TARGETED FEW-SHOT EXAMPLE]
+[TARGETED FEW-SHOT EXAMPLE]
 
 Clinical note:
 
