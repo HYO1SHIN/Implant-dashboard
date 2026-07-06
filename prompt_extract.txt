@@ -10,9 +10,15 @@ For each distinct device slot, create a single consolidated JSON object.
 - NEVER create separate JSON objects for the generic term and the specific model name. Merge them!
 - Example: "VVIR permanent pacemaker" and "Pulse Generator Model Name: Sigma" refer to the SAME device. Output only ONE object using the most specific name.
 
-[DO NOT EXTRACT]
-- Temporary equipment (needles, sheaths, wires, catheters, gauze, surgical tools)
-- Planned future devices or family history devices.
+[DO NOT EXTRACT - CONCEPTUAL EXCLUSION CRITERIA]
+You MUST strictly exclude all temporary, disposable, procedural, surgical-maintenance, or short-term medical supplies. Focus ONLY on long-term indwelling or permanent functional therapeutic/diagnostic implants. 
+
+Apply the following conceptual boundaries to aggressively discard non-implantable elements:
+1. Short-term Drainage & Fluids: Any temporary line or tube inserted for fluid, air, or urine management during surgery or an ICU stay (e.g., chest tubes, Blake drains, Foley catheters, rectal tubes).
+2. Intraoperative Tools & Access Equipment: Disposable devices used to perform the procedure but completely removed before completion (e.g., needles, sheaths, trocars, guide wires, angiographic catheters, scalpels).
+3. Wound Closure & Vascular Hemostasis Devices: Materials used solely to close skin, fascia, or vessels, or to achieve immediate mechanical hemostasis (e.g., sutures, surgical silk, staples, clips, skin staples, or active closure devices like Perclose or ProGlide).
+4. Absorbable Topical Agents & Sponges: Bio-absorbable materials placed intraoperatively to control bleeding that naturally degrade (e.g., Gelfoam, Surgicel, bone wax, gelatin sponges).
+5. Temporary Supportive Hardware: Short-term ventilation or monitoring equipment (e.g., endotracheal tubes, temporary pacing wires/leads pulled post-op).
 
 [STRICT IMPLANT LOCATION RULE]
 You MUST choose EXACTLY ONE literal string for "implant_location" from this list. Do not alter the text, do not output sub-structures (e.g., NEVER output 'Structure of apex', 'ventricle', 'pectoral pocket', or concatenated terms):
@@ -40,7 +46,7 @@ You MUST choose EXACTLY ONE literal string for "implant_location" from this list
 
 [🎯 TARGETED FEW-SHOT EXAMPLE]
 Clinical note:
-"Date: 2026-07-01. A 65-year-old male underwent urgent permanent pacemaker insertion. Under fluoroscopy, the ventricular lead was screwed into the right ventricle apex. The pulse generator was then connected and inserted into the left pectoral pocket. 
+"Date: 2026-07-01. A 65-year-old male underwent urgent permanent pacemaker insertion. Under fluoroscopy, the ventricular lead was screwed into the right ventricle apex. The pulse generator was then connected and inserted into the left pectoral pocket. Interoperatively, bleeding was controlled with Gelfoam. A temporary pacemaker wire was used during the procedure, and a 24-Fr chest tube was left in place. The femoral puncture site was closed using a Perclose device.
 [Pacemaker Settings]
 IMPLANT DEVICE: Pulse Generator Model Name: Gamma, model #: 999, serial #: 111
 VENTRICLE LEAD: Model #: 888, serial #: 222 (steroid eluting lead)"
