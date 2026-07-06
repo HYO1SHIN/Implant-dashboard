@@ -26,11 +26,16 @@ def review_device(note, extracted_json):
 Your task is to review, refine, and aggressively clean the extracted device list based on the original clinical note.
 
 [CRITICAL EXCLUSION & DELETION RULES - GATEKEEPER ROLE]
-You MUST act as a strict gatekeeper. If any device in the "Extracted Devices to Review" list falls into the following temporary/disposable categories, you MUST COMPLETELY DELETE and REMOVE it from the final JSON array. Do NOT retain them.
-1. ABSOLUTELY NO Topical Hemostatic Agents & Sponges (e.g., Gelfoam, Surgicel, bone wax).
-2. ABSOLUTELY NO Wound Closure & Vascular Sealing Devices (e.g., Perclose, ProGlide, Angio-Seal, sutures, clips).
-3. ABSOLUTELY NO Short-term Drainage & Catheters (e.g., Foley catheter, urinary lines, chest tubes, Blake drains).
-4. ABSOLUTELY NO Intraoperative Access Equipment (e.g., needles, sheaths, trocars, guide wires, temporary pacing wires).
+You MUST act as a strict gatekeeper. If any device in the "Extracted Devices to Review" list falls into the following temporary, disposable, procedural, or short-term access categories, you MUST COMPLETELY DELETE and REMOVE it from the final JSON array. Do NOT retain them.
+
+1. ABSOLUTELY NO Short-term Drainage, Catheters & Lines:
+   - Completely REMOVE temporary lines or tubes meant for short-term fluid/blood management or monitoring (e.g., triple lumen catheters, central venous lines, arterial catheters/lines, brachial/femoral catheters, Foley catheters, urinary lines, chest tubes, Blake drains, rectal tubes).
+2. ABSOLUTELY NO Intraoperative Access Equipment:
+   - Completely REMOVE surgical access or delivery tools (e.g., needles, sheaths, trocars, guide wires, introducers, temporary pacing wires/leads pulled post-op).
+3. ABSOLUTELY NO Wound Closure & Vascular Sealing Devices:
+   - Completely REMOVE items used solely to close blood vessels or skin (e.g., Perclose, ProGlide, Angio-Seal, Mynx, sutures, clips, staples, surgical silk).
+4. ABSOLUTELY NO Topical Hemostatic Agents & Sponges:
+   - Completely REMOVE bio-absorbable materials used to control surgical bleeding (e.g., Gelfoam, Surgicel, gelatin sponge, bone wax).
 
 [CRITICAL CLINICAL & MERGING RULES]
 1. STRICT PATIENT FOCUS: ONLY extract devices implanted in the PATIENT. Ignore family history.
