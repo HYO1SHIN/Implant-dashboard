@@ -23,18 +23,28 @@ def review_device(note, extracted_json):
             return {"devices": []}
 
     prompt = f"""You are an expert clinical data scientist specializing in implantable medical devices.
-Review and refine the extracted device list based on the original clinical note to maximize compliance and accuracy.
+Your task is to review, refine, and aggressively clean the extracted device list based on the original clinical note.
+
+[CRITICAL EXCLUSION & DELETION RULES - GATEKEEPER ROLE]
+You MUST act as a strict gatekeeper. If any device in the "Extracted Devices to Review" list falls into the following temporary/disposable categories, you MUST COMPLETELY DELETE and REMOVE it from the final JSON array. Do NOT retain them.
+
+1. ABSOLUTELY NO Topical Hemostatic Agents & Sponges: 
+   - Completely REMOVE materials that naturally degrade or are used just to stop bleeding during surgery (e.g., Gelfoam, Surgicel, gelatin sponge, bone wax, hemostatic matrix).
+2. ABSOLUTELY NO Wound Closure & Vascular Sealing Devices: 
+   - Completely REMOVE tools used solely to close blood vessels or skin incisions (e.g., Perclose, ProGlide, Angio-Seal, Mynx, sutures, staples, clips, surgical silk).
+3. ABSOLUTELY NO Short-term Drainage & Catheters: 
+   - Completely REMOVE temporary tubes meant for fluid/urine management during an ICU stay or surgery (e.g., Foley catheter, urinary lines, chest tubes, Blake drains, rectal tubes).
+4. ABSOLUTELY NO Intraoperative Access Equipment: 
+   - Completely REMOVE needles, sheaths, trocars, guide wires, introducers, or temporary pacing wires that are removed at the end of the procedure.
 
 [CRITICAL CLINICAL & MERGING RULES]
-1. STRICT PATIENT FOCUS: ONLY extract devices implanted in the PATIENT. Strictly IGNORE family history.
-2. EXPLANTED/REMOVED DEVICES: Do NOT delete historical or removed devices. Set "implant_status" to "NOT CURRENT".
+1. STRICT PATIENT FOCUS: ONLY extract devices implanted in the PATIENT. Ignore family history.
+2. EXPLANTED/REMOVED DEVICES: Keep historical or removed devices in the list, but set "implant_status" to "NOT CURRENT".
 3. NO FUTURE/PLANNED DEVICES: Do NOT extract planned or considered procedures.
-4. STRICT DEVICE CONSOLIDATION: Generic names in the text (e.g., "permanent pacemaker") and specific specs in the settings block (e.g., "Pulse Generator: Sigma, model #: 12345") represent the SAME device instance. 
-   - You MUST keep them MERGED into a single object. 
-   - NEVER split a consolidated device object back into separate generic and specific entries.
+4. STRICT DEVICE CONSOLIDATION: Always keep generic text terms and specific serial/model specifications merged into a single device object. NEVER split them back.
 
 [STRICT IMPLANT LOCATION RULE]
-For "implant_location", you MUST ensure the value belongs to EXACTLY ONE of the following 19 predefined anatomical regions. Do NOT let it hallucinate raw text terms like 'pectoral pocket' or 'lateral region':
+For "implant_location", you MUST enforce the value to match EXACTLY ONE of the following 19 regions. Do NOT allow raw anatomy text (e.g., 'pectoral pocket', 'right ventricle apex' -> map to 'Heart'):
 - Brain
 - Neck
 - Cervical Spine
@@ -55,14 +65,7 @@ For "implant_location", you MUST ensure the value belongs to EXACTLY ONE of the 
 - Right Foot
 - Left Foot
 
-* Rule: Any cardiac/pacemaker components (lead, pulse generator, pocket, apex) MUST remain mapped to "Heart".
-
-Rules for Fields:
-- device_name: Detailed product name including model/serial numbers.
-- canonical_device_name: Normalized generic concept (e.g., Cardiac Pacemaker, Pacemaker Lead).
-- implant_status: "CURRENT" or "NOT CURRENT".
-
-IMPORTANT: Always return a JSON OBJECT conforming to this format. No conversational text.
+IMPORTANT: Return a valid JSON OBJECT only. No conversational commentary, no markdown backticks.
 {{
   "devices":[
     {{
@@ -80,7 +83,7 @@ IMPORTANT: Always return a JSON OBJECT conforming to this format. No conversatio
 Clinical Note:
 {note}
 
-Extracted Devices to Review:
+Extracted Devices to Review (Filter and DELETE temporary items from here):
 {json.dumps(extracted_json, indent=2)}
 """
 
