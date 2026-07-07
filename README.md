@@ -2,7 +2,7 @@
 <p align="center">
   <strong>LLM-Powered Implantable Medical Device Registry & Visualization Platform</strong><br>
   <em>
-  Hyowon Shin
+  Hyo-Won Shin
   <br>
   M.S. Candidate, Graduate School of AI·Software, Sogang University
   <br>
