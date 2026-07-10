@@ -25,67 +25,98 @@ def review_device(note, extracted_json):
     prompt = f"""You are an expert clinical data scientist specializing in implantable medical devices.
 Your task is to review, refine, and aggressively clean the extracted device list based on the original clinical note.
 
-[CRITICAL MERGING & DEDUPLICATION RULE]
-- A clinical note often mentions a generic device name in the text and later specifies its exact brand/model/serial number in a settings block.
-- You MUST combine these into a SINGLE JSON object representing that specific device. 
-- NEVER create separate JSON objects for the generic term and the specific model name. Merge them!
+[CRITICAL EXCLUSION & DELETION RULES - GATEKEEPER ROLE]
 
-[CRITICAL EXCLUSION & DELETION RULES - DO NOT EXTRACT]
-You MUST act as a strict gatekeeper. If any device in the "Extracted Devices to Review" list falls into the following temporary, disposable, procedural, surgical-maintenance, or short-term medical supplies, you MUST COMPLETELY DELETE and REMOVE it from the final JSON array. Focus ONLY on long-term indwelling or permanent implants. Completely drop and ignore:
-1. Short-term Drainage & Fluids: Any temporary line, tube, or catheter inserted for short-term fluid, air, or urine management (e.g., chest tubes, Blake drains, Foley catheters, rectal tubes, triple lumen catheters, arterial catheters/lines).
-2. Intraoperative Tools & Access Equipment: Disposable devices used to perform the procedure but completely removed before completion (e.g., needles, sheaths, trocars, guide wires, introducers, surgical tools, temporary pacing wires).
-3. Wound Closure & Vascular Hemostasis Devices: Materials used solely to close skin, fascia, or vessels, or to achieve immediate mechanical hemostasis (e.g., sutures, surgical silk, staples, clips, or active closure devices like Perclose, ProGlide, Angio-Seal).
-4. Absorbable Topical Agents & Sponges: Bio-absorbable materials placed intraoperatively to control bleeding that naturally degrade (e.g., Gelfoam, Surgicel, bone wax, gelatin sponges).
-5. Planned future devices or family history devices.
+You MUST act as a strict gatekeeper. If any device in the "Extracted Devices to Review" list falls into the following temporary, disposable, procedural, or short-term access categories, you MUST COMPLETELY DELETE and REMOVE it from the final JSON array. Do NOT retain them.
+
+
+
+1. ABSOLUTELY NO Short-term Drainage, Catheters & Lines:
+
+   - Completely REMOVE temporary lines or tubes meant for short-term fluid/blood management or monitoring (e.g., triple lumen catheters, central venous lines, arterial catheters/lines, brachial/femoral catheters, Foley catheters, urinary lines, chest tubes, Blake drains, rectal tubes).
+
+2. ABSOLUTELY NO Intraoperative Access Equipment:
+
+   - Completely REMOVE surgical access or delivery tools (e.g., needles, sheaths, trocars, guide wires, introducers, temporary pacing wires/leads pulled post-op).
+
+3. ABSOLUTELY NO Wound Closure & Vascular Sealing Devices:
+
+   - Completely REMOVE items used solely to close blood vessels or skin (e.g., Perclose, ProGlide, Angio-Seal, Mynx, sutures, clips, staples, surgical silk).
+
+4. ABSOLUTELY NO Topical Hemostatic Agents & Sponges:
+
+   - Completely REMOVE bio-absorbable materials used to control surgical bleeding (e.g., Gelfoam, Surgicel, gelatin sponge, bone wax).
+
+
+
+[CRITICAL CLINICAL & MERGING RULES]
+
+1. STRICT PATIENT FOCUS: ONLY extract devices implanted in the PATIENT. Ignore family history.
+
+2. EXPLANTED/REMOVED DEVICES: Keep historical or removed devices in the list, but set "implant_status" to "NOT CURRENT".
+
+3. NO FUTURE/PLANNED DEVICES: Do NOT extract planned or considered procedures.
+
+4. STRICT DEVICE CONSOLIDATION: Always keep generic text terms and specific serial/model specifications merged into a single device object.
+
+
 
 [STRICT DATE FORMATTING RULE]
-- You MUST strictly normalize and convert ALL "implant_date" values into ISO format: YYYY-MM-DD (e.g., 2007-08-21).
-- If the original clinical note or the extracted JSON contains dates in MM/DD/YYYY (e.g., 08/21/2007) or YY/MM/DD (e.g., 03/08/28), you MUST actively recalculate and convert them into the standard YYYY-MM-DD format before outputting. 
-- NEVER copy non-standard raw date formats directly from the note. Transform them!
+
+- You MUST strictly format ALL "implant_date" values into the ISO format: YYYY-MM-DD (e.g., 2007-08-21).
+
+- If the original clinical note or the extracted JSON contains dates in MM/DD/YYYY (e.g., 08/21/2007) or YY/MM/DD (e.g., 03/08/28), you MUST actively recalculate and convert them into the standard YYYY-MM-DD format before outputting.
+
+
 
 [STRICT IMPLANT LOCATION RULE]
-You MUST choose EXACTLY ONE literal string for "implant_location" from this list. Do not alter the text, do not output sub-structures:
-- Brain
-- Neck
-- Cervical Spine
-- Thoracic Spine
-- Lumbar Spine
-- Heart
-- Abdomen
-- Right Shoulder
-- Left Shoulder
-- Right Elbow
-- Left Elbow
-- Right Hand
-- Left Hand
-- Right Pelvis (Femoral Head)
-- Left Pelvis (Femoral Head)
-- Right Knee
-- Left Knee
-- Right Foot
-- Left Foot
 
-* Clinical Mapping Guideline: Any cardiac device component (pacemaker, ICD, pulse generator, lead, screw, RV apex placement) MUST be mapped to "Heart".
+For "implant_location", you MUST enforce the value to match EXACTLY ONE of the following 19 regions:
+
+- Brain, Neck, Cervical Spine, Thoracic Spine, Lumbar Spine, Heart, Abdomen, Right Shoulder, Left Shoulder, Right Elbow, Left Elbow, Right Hand, Left Hand, Right Pelvis (Femoral Head), Left Pelvis (Femoral Head), Right Knee, Left Knee, Right Foot, Left Foot.
+
+* Rule: Any cardiac/pacemaker components MUST remain mapped to "Heart".
+
+
 
 Rules for Fields:
+
 - device_name: Detailed product name including model/serial numbers.
+
 - canonical_device_name: Normalized generic concept.
+
 - implant_date: MUST be strictly normalized to YYYY-MM-DD.
+
 - implant_status: "CURRENT" or "NOT CURRENT".
 
+
+
 IMPORTANT: Return a valid JSON OBJECT only. No conversational commentary, no markdown backticks.
+
 {{
-  "devices": [
+
+  "devices":[
+
     {{
-      "device_name": "",
-      "canonical_device_name": "",
-      "device_size": "",
-      "implant_location": "",
-      "implant_date": "YYYY-MM-DD",
-      "implant_status": "",
-      "supporting_text": ""
+
+      "device_name":"",
+
+      "canonical_device_name":"",
+
+      "device_size":"",
+
+      "implant_location":"",
+
+      "implant_date":"",
+
+      "implant_status":"",
+
+      "supporting_text":""
+
     }}
+
   ]
+
 }}
 
 Clinical Note:
