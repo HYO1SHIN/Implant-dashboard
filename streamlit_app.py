@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit.components.v1 as components
 from pathlib import Path
-from collections import defaultdict  
+from collections import defaultdict
 
 from llm_extract import run_pipeline
 from bodymap import render_bodymap
@@ -84,23 +84,45 @@ if st.button("Execute Pipeline"):
 
                     timeline_html = f"""
                     <style>
-                        .tl-container {{ background: #F8FAFC; padding: 20px; border-radius: 12px; border: 1px solid #E2E8F0; height: 320px; font-family: system-ui; position: relative; }}
-                        .tl-axis {{ position: absolute; top: 120px; left: 10%; right: 10%; height: 5px; background: #64748B; border-radius: 4px; }}
-                        .tl-node {{ position: absolute; top: 110px; transform: translateX(-50%); cursor: pointer; }} /* 💡 top 고정: 선 위에 점 하나만 생성 */
+                        .tl-container {{ background: #F8FAFC; padding: 20px; border-radius: 12px; border: 1px solid #E2E8F0; height: 380px; font-family: system-ui; position: relative; }}
+                        .tl-axis {{ position: absolute; top: 240px; left: 10%; right: 10%; height: 5px; background: #64748B; border-radius: 4px; }}
+                        .tl-node {{ position: absolute; top: 230px; transform: translateX(-50%); cursor: pointer; }}
                         .tl-dot {{ width: 18px; height: 18px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.15); transition: 0.2s; }}
                         .tl-dot.current {{ background: #2563EB; }}
                         .tl-node:hover .tl-dot.current {{ transform: scale(1.3); background: #1D4ED8; }}
                         .tl-dot.not-current {{ background: #EF4444; }}
                         .tl-node:hover .tl-dot.not-current {{ transform: scale(1.3); background: #DC2626; }}
                         
-                        /* 툴팁 내부 다중 데이터 스택 */
-                        .tl-tooltip {{ visibility: hidden; width: 280px; max-height: 240px; overflow-y: auto; background: #0F172A; color: white; border-radius: 8px; padding: 12px; position: absolute; z-index: 100; bottom: 30px; left: 50%; transform: translateX(-50%); opacity: 0; transition: 0.2s; font-size: 11px; line-height: 1.4; box-shadow: 0 4px 15px rgba(0,0,0,0.2); pointer-events: none; }}
+                        .tl-tooltip {{ 
+                            visibility: hidden; 
+                            width: 300px; 
+                            max-height: 210px; 
+                            overflow-y: auto; 
+                            background: #0F172A; 
+                            color: white; 
+                            border-radius: 8px; 
+                            padding: 12px; 
+                            position: absolute; 
+                            z-index: 100; 
+                            bottom: 22px; 
+                            left: 50%; 
+                            transform: translateX(-50%); 
+                            opacity: 0; 
+                            transition: 0.2s; 
+                            font-size: 11px; 
+                            line-height: 1.4; 
+                            box-shadow: 0 4px 15px rgba(0,0,0,0.3); 
+                            pointer-events: auto; 
+                        }}
                         .tl-tooltip::after {{ content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: #0F172A transparent transparent transparent; }}
                         .tl-node:hover .tl-tooltip {{ visibility: visible; opacity: 1; transform: translateX(-50%) translateY(-5px); }}
+                        
+                        .tl-tooltip::-webkit-scrollbar {{ width: 4px; }}
+                        .tl-tooltip::-webkit-scrollbar-thumb {{ background: #334155; border-radius: 2px; }}
                     </style>
                     <div class="tl-container">
                         <b style="color:#1E3A8A; font-size:14px; display:block; margin-bottom:15px;">Linear Proportional History</b>
-                        <div style="position:relative; height:200px;">
+                        <div style="position:relative; height:260px;">
                             <div class="tl-axis"></div>
                     """
                     
@@ -110,7 +132,6 @@ if st.button("Execute Pipeline"):
 
                     for cur_year in sorted(grouped_by_year.keys()):
                         items = grouped_by_year[cur_year]
-                        
                         left = 10 + (80 * (cur_year - start_year) / year_range)
                         
                         has_current = any(x["status"] == "CURRENT" for x in items)
@@ -145,7 +166,7 @@ if st.button("Execute Pipeline"):
                         """
                         
                     timeline_html += "</div></div>"
-                    components.html(timeline_html, height=340, scrolling=False)
+                    components.html(timeline_html, height=400, scrolling=False)
 
         with col_right:
             st.subheader("🗺️ Live Anatomy Bodymap")
