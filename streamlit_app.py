@@ -16,28 +16,28 @@ st.title("🏥 Implantable Device Registry & Tracking System")
 
 st.markdown(
     """
-Clinical Note를 입력하면 LLM + UMLS + FDA 데이터베이스를 유기적으로 탐색하여 
-**표준 장기 타임라인** 및 **환자 신체 위치별 바디맵**을 실시간으로 동기화합니다.
+Input a clinical note to seamlessly integrate LLM, UMLS, and FDA databases,
+enabling real-time synchronization of a standardized longitudinal timeline and an anatomical patient bodymap.
 """
 )
 
-note = st.text_area("Clinical Note 입력", height=250)
+note = st.text_area("Enter Clinical Note", height=250)
 
-if st.button("🔍 시스템 가동 및 추적"):
+if st.button("Execute Pipeline"):
     if not note.strip():
-        st.warning("Clinical Note를 입력하세요.")
+        st.warning("Enter Clinical Note.")
     else:
-        with st.spinner("LLM 분석 및 의료 지식 그래프 탐색 중..."):
+        with st.spinner("Analyzing LLM & Querying Medical Knowledge Graph..."):
             result = run_pipeline(note)
 
-        st.success("환자 데이터 정제 완료")
+        st.success("Patient Data Successfully Normalized")
         devices = result.get("devices", [])
 
         col_left, col_right = st.columns([1.1, 0.9])
 
         with col_left:
             st.subheader("📋 Device Summary")
-            st.write(f"검출된 체내 삽입형 의료기기 이력 : {len(devices)}개")
+            st.write(f"Detected Implantable Device History : {len(devices)}")
 
             if len(devices) > 0:
                 rows = []
@@ -55,7 +55,7 @@ if st.button("🔍 시스템 가동 및 추적"):
                 df = pd.DataFrame(rows)
                 st.dataframe(df, use_container_width=True)
 
-                st.subheader("🕒 Patient Device Timeline")
+                st.subheader("Patient Device Timeline")
                 timeline_devices = []
                 for d in devices:
                     year = str(d.get("implant_date", "")).strip()
@@ -85,7 +85,7 @@ if st.button("🔍 시스템 가동 및 추적"):
                     <style>
                         .tl-container {{ background: #F8FAFC; padding: 20px; border-radius: 12px; border: 1px solid #E2E8F0; height: 320px; font-family: system-ui; position: relative; }}
                         .tl-axis {{ position: absolute; top: 120px; left: 10%; right: 10%; height: 5px; background: #64748B; border-radius: 4px; }}
-                        .tl-node {{ position: absolute; top: 110px; transform: translateX(-50%); cursor: pointer; }}
+                        .tl-node {{ position: absolute; transform: translateX(-50%); cursor: pointer; }}
                         .tl-dot {{ width: 18px; height: 18px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.15); transition: 0.2s; }}
                         .tl-dot.current {{ background: #2563EB; }}
                         .tl-node:hover .tl-dot.current {{ transform: scale(1.3); background: #1D4ED8; }}
@@ -100,15 +100,30 @@ if st.button("🔍 시스템 가동 및 추적"):
                         <div style="position:relative; height:200px;">
                             <div class="tl-axis"></div>
                     """
+                    
+                    year_collision_tracker = {}
+
                     for item in timeline_devices:
-                        left = 10 + (80 * (item["year"] - start_year) / year_range)
-                        safe_text = item['text'].replace('"', '&quot;').replace("'", "&apos;")
+                        cur_year = item["year"]
                         
+                        year_collision_tracker[cur_year] = year_collision_tracker.get(cur_year, 0) + 1
+                        nth_device = year_collision_tracker[cur_year] - 1
+
+                        left = 10 + (80 * (cur_year - start_year) / year_range)
+                        
+                        dynamic_top = 110 - (nth_device * 24)
+                        
+                        safe_text = item['text'].replace('"', '&quot;').replace("'", "&apos;")
                         status_class = "current" if item["status"] == "CURRENT" else "not-current"
                         status_badge_color = "#34D399" if item["status"] == "CURRENT" else "#FCA5A5"
                         
+                        if nth_device == 0:
+                            year_label_html = f'<div style="margin-top:8px; font-weight:bold; font-size:12px; color:#334155; text-align:center;">{cur_year}</div>'
+                        else:
+                            year_label_html = ""
+                        
                         timeline_html += f"""
-                        <div class="tl-node" style="left: {left}%;">
+                        <div class="tl-node" style="left: {left}%; top: {dynamic_top}px;">
                             <div class="tl-dot {status_class}"></div>
                             <div class="tl-tooltip">
                                 <b style="color:#60A5FA; font-size:12px; display:block; margin-bottom:4px;">{item['device']}</b>
@@ -117,7 +132,7 @@ if st.button("🔍 시스템 가동 및 추적"):
                                 <b>Location:</b> {item['location']}<br>
                                 <div style="margin-top:6px; border-top:1px solid #334155; padding-top:4px; color:#94A3B8; font-style:italic;">"{safe_text}"</div>
                             </div>
-                            <div style="margin-top:8px; font-weight:bold; font-size:12px; color:#334155; text-align:center;">{item['year']}</div>
+                            {year_label_html}
                         </div>
                         """
                     timeline_html += "</div></div>"
@@ -125,7 +140,6 @@ if st.button("🔍 시스템 가동 및 추적"):
 
         with col_right:
             st.subheader("🗺️ Live Anatomy Bodymap")
-            
 
             LOCAL_IMG_PATH = Path(r"C:\Users\신효원\Desktop\생성형AI수업\DATA\implant_dashboard\assets\body_front.png")
             RELATIVE_IMG_PATH = Path(__file__).parent / "assets" / "body_front.png"
