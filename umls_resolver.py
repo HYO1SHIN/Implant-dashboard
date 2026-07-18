@@ -3,7 +3,6 @@ import pandas as pd
 import os
 import streamlit as st
 
-
 API_KEY = os.environ.get("UMLS_API_KEY")
 
 if not API_KEY:
@@ -52,7 +51,6 @@ def get_cui_detail(cui):
         "snomed_id":""
     }
     try:
-
         content_url = (
             BASE_URL +
             f"/rest/content/current/CUI/{cui}"
@@ -76,7 +74,6 @@ def get_cui_detail(cui):
                 "name",
                 ""
             )
-
 
         atom_url = (
             BASE_URL +
@@ -129,7 +126,8 @@ def get_cui_detail(cui):
 
 def choose_best_candidate(results):
     candidates = []
-    for item in results[:20]:
+    
+    for item in results[:5]:
         cui = item.get(
             "ui",
             ""
