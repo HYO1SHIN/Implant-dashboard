@@ -53,6 +53,11 @@ You MUST choose EXACTLY ONE literal string for "implant_location" from this list
 - Surgical shunts or conduits (e.g., central shunt, Fontan conduit) are implantable devices unless explicit removal/explantation is documented.
 - Terms such as ligation, takedown, or embolization do NOT imply device removal unless the note explicitly states removal or explantation.
 
+[CRITICAL SEPARATION RULE]
+If the same type of device (e.g., coils, shunts, stents) is implanted, adjusted, or undergoes multiple procedures across DIFFERENT dates, you MUST generate a SEPARATE, independent JSON object for EACH individual date/event inside the "devices" list.
+- NEVER combine them into a single object using words like "multiple", "additional", or "various".
+- Each entry must have its own distinct, correct "implant_date" and its own specific "supporting_text" corresponding to that date's line.
+
 [TARGETED FEW-SHOT EXAMPLE]
 Clinical note:
 "Date: 08/21/2007. A 65-year-old male underwent urgent permanent pacemaker insertion. A right subclavian triple lumen catheter and a brachial arterial catheter were placed temporarily for ICU monitoring. Under fluoroscopy, the ventricular lead was screwed into the right ventricle apex. The pulse generator was then connected and inserted into the left pectoral pocket. Interoperatively, minor oozing was controlled with Gelfoam. The femoral puncture site was closed using a Perclose device, and a Foley catheter was placed.
