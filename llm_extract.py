@@ -8,7 +8,6 @@ from groq import Groq
 from schema_loader import apply_schema
 from umls_resolver import search_umls
 from device_resolver import resolve_device_by_cui
-# from review_device import review_device
 
 BASE_DIR = Path(__file__).parent
 ALLOWED_SEMANTIC_TYPES = ["Medical Device", "Manufactured Object", "Drug Delivery Device"]
@@ -89,17 +88,6 @@ def extract_json(text):
 
 def process_single_chunk(chunk):
     raw_result = extract_device_raw(chunk)
-    
-    # try:
-    #     reviewed_result = review_device(chunk, raw_result)
-    #     if isinstance(reviewed_result, dict):
-    #         chunk_json = reviewed_result
-    #     else:
-    #         chunk_json = extract_json(reviewed_result)
-    # except Exception as e:
-    #     print(f"리뷰 단계 우회: {e}")
-    #     chunk_json = extract_json(raw_result)
-    
     chunk_json = extract_json(raw_result)
 
     try:
@@ -113,11 +101,14 @@ def process_single_chunk(chunk):
         schema_json = {"devices": []}
         
     for device in schema_json.get("devices", []):
-        term = device.get("canonical_device_name", "").strip()
-        if not term:
-            term = device.get("device_name", "").strip()
-        if not term:
+        orig_device_name = str(device.get("device_name") or "").strip()
+        orig_canonical_name = str(device.get("canonical_device_name") or "").strip()
+        orig_supporting_text = str(device.get("supporting_text") or "").strip()
+        
+        if not orig_device_name and not orig_canonical_name:
             continue
+            
+        term = orig_canonical_name if orig_canonical_name else orig_device_name
 
         try:
             umls = search_umls(term)
@@ -134,12 +125,16 @@ def process_single_chunk(chunk):
             }
 
         device["cui"] = umls.get("cui", "")
-        device["preferred_name"] = umls.get("preferred_name", "")
+        device["preferred_name"] = orig_canonical_name if orig_canonical_name else orig_device_name
         device["semantic_type"] = umls.get("semantic_type", "")
         device["synonyms"] = umls.get("synonyms", [])
         device["snomed_id"] = umls.get("snomed_id", "")
+        
+        device["device_name"] = orig_device_name
+        device["canonical_device_name"] = orig_canonical_name if orig_canonical_name else orig_device_name
+        device["supporting_text"] = orig_supporting_text
 
-        raw_location = device.get("implant_location", "").strip()
+        raw_location = str(device.get("implant_location") or "").strip()
         device["location_cui"] = ""
 
         if raw_location and raw_location.lower() not in ["none", "null", "nan", "unknown"]:
@@ -177,11 +172,12 @@ def run_pipeline(note):
     seen_signatures = set()
 
     for d in master_devices_pool:
-        name = str(d.get("device_name", "")).strip().lower()
-        date = str(d.get("implant_date", "")).strip()
-        status = str(d.get("implant_status", "")).strip().upper()
+        name = str(d.get("device_name") or "").strip().lower()
+        date = str(d.get("implant_date") or "").strip()
+        status = str(d.get("implant_status") or "").strip().upper()
         
-        signature = f"{name}_{date}_{status}"
+        text_snippet = str(d.get("supporting_text") or "").strip()[:20].lower()
+        signature = f"{name}_{date}_{status}_{text_snippet}"
         
         if signature not in seen_signatures and name:
             seen_signatures.add(signature)
@@ -207,18 +203,40 @@ def run_pipeline(note):
         "Left Pelvis (Femoral Head)", "Right Knee", "Left Knee", "Right Foot", "Left Foot"
     ]
 
+    note_lower = str(note or "").lower()
+
     for device in final_result.get("devices", []):
-        loc = str(device.get("implant_location", "")).strip()
-        name = str(device.get("device_name", "")).strip().lower()
-        canon = str(device.get("canonical_device_name", "")).strip().lower()
+        loc = str(device.get("implant_location") or "").strip()
+        name = str(device.get("device_name") or "").strip().lower()
+        canon = str(device.get("canonical_device_name") or "").strip().lower()
+        pref = str(device.get("preferred_name") or "").strip().lower()
         
-        if any(kw in loc.lower() or kw in name or kw in canon for kw in ["heart", "ventricle", "apex", "atrial", "pacer", "pocket", "sigma", "pectoral", "chest", "pacemaker", "cardiac lead"]):
+        combined_text = f"{loc.lower()} {name} {canon} {pref}"
+        
+        is_cardiac_context = any(kw in note_lower for kw in ["fontan", "glenn", "shunt", "embolization", "coil", "tricuspid", "cardiac", "septal", "fenestration"])
+        
+        if any(kw in combined_text for kw in ["heart", "ventricle", "apex", "atrial", "pacer", "pocket", "sigma", "pectoral", "chest", "pacemaker", "cardiac lead", "conduit", "fenestration", "coil"]):
             device["implant_location"] = "Heart"
             device["location_cui"] = "C0018787"
+            
+            if "brain" in combined_text or "central nervous system" in combined_text:
+                device["preferred_name"] = "Vascular Shunt"
+                device["cui"] = "C0011667"
             continue
             
-        if any(kw in loc.lower() or kw in name or kw in canon for kw in ["hip", "pelvis", "femoral", "acetabular", "arthroplasty", "coaxial", "ilium"]):
-            if "left" in note.lower() or "left" in loc.lower() or "lt" in loc.lower():
+        if "shunt" in combined_text:
+            if is_cardiac_context and "brain" not in combined_text:
+                device["implant_location"] = "Heart"
+                device["location_cui"] = "C0018787"
+                device["preferred_name"] = "Vascular Shunt"
+                device["cui"] = "C0011667"
+            else:
+                device["implant_location"] = "Brain"
+                device["location_cui"] = "C0018787"
+            continue
+            
+        if any(kw in combined_text for kw in ["hip", "pelvis", "femoral", "acetabular", "arthroplasty", "coaxial", "ilium"]):
+            if "left" in note_lower or "left" in loc.lower() or "lt" in loc.lower():
                 device["implant_location"] = "Left Pelvis (Femoral Head)"
                 device["location_cui"] = "C0030863"
             else:
@@ -226,8 +244,8 @@ def run_pipeline(note):
                 device["location_cui"] = "C0033446"
             continue
 
-        if any(kw in loc.lower() or kw in name or kw in canon for kw in ["knee", "patella", "tibia", "tkr", "tka"]):
-            if "left" in note.lower() or "left" in loc.lower() or "lt" in loc.lower():
+        if any(kw in combined_text for kw in ["knee", "patella", "tibia", "tkr", "tka"]):
+            if "left" in note_lower or "left" in loc.lower() or "lt" in loc.lower():
                 device["implant_location"] = "Left Knee"
                 device["location_cui"] = "C0224855"
             else:
@@ -240,9 +258,9 @@ def run_pipeline(note):
             if matched:
                 device["implant_location"] = matched
             else:
-                if "brain" in note.lower() or "shunt" in name:
+                if "brain" in note_lower or "shunt" in name:
                     device["implant_location"] = "Brain"
-                elif "abdomen" in note.lower() or "mesh" in name or "graft" in name:
+                elif "abdomen" in note_lower or "mesh" in name or "graft" in name:
                     device["implant_location"] = "Abdomen"
                 else:
                     device["implant_location"] = "Heart" 
