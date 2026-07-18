@@ -13,7 +13,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("🏥 Implantable Device Registry & Tracking System")
+st.title("Implantable Device Registry & Tracking System")
 
 st.markdown(
     """
@@ -139,7 +139,9 @@ if st.button("Execute Pipeline"):
                         
                         tooltip_stacked_html = ""
                         for idx, item in enumerate(items):
-                            safe_text = item['text'].replace('"', '&quot;').replace("'", "&apos;")
+                            raw_text = str(item.get('text') or '')
+                            safe_text = raw_text.replace('"', '&quot;').replace("'", "&apos;")
+                            
                             status_badge_color = "#34D399" if item["status"] == "CURRENT" else "#FCA5A5"
                             
                             if idx > 0:
