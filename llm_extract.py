@@ -8,7 +8,7 @@ from groq import Groq
 from schema_loader import apply_schema
 from umls_resolver import search_umls
 from device_resolver import resolve_device_by_cui
-from review_device import review_device
+# from review_device import review_device
 
 BASE_DIR = Path(__file__).parent
 ALLOWED_SEMANTIC_TYPES = ["Medical Device", "Manufactured Object", "Drug Delivery Device"]
@@ -26,7 +26,6 @@ client = Groq(api_key=GROQ_API_KEY)
 
 
 def chunk_text(text, max_chars=8000):
-
     paragraphs = text.split('\n')
     chunks = []
     current_chunk = []
@@ -91,15 +90,17 @@ def extract_json(text):
 def process_single_chunk(chunk):
     raw_result = extract_device_raw(chunk)
     
-    try:
-        reviewed_result = review_device(chunk, raw_result)
-        if isinstance(reviewed_result, dict):
-            chunk_json = reviewed_result
-        else:
-            chunk_json = extract_json(reviewed_result)
-    except Exception as e:
-        print(f"리뷰 단계 우회: {e}")
-        chunk_json = extract_json(raw_result)
+    # try:
+    #     reviewed_result = review_device(chunk, raw_result)
+    #     if isinstance(reviewed_result, dict):
+    #         chunk_json = reviewed_result
+    #     else:
+    #         chunk_json = extract_json(reviewed_result)
+    # except Exception as e:
+    #     print(f"리뷰 단계 우회: {e}")
+    #     chunk_json = extract_json(raw_result)
+    
+    chunk_json = extract_json(raw_result)
 
     try:
         schema_json = apply_schema(chunk_json)
