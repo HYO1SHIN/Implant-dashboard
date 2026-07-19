@@ -27,7 +27,7 @@ for i in range(15):
 
 if chunk_list:
     device_db = pd.concat(chunk_list, ignore_index=True)
-    print(f"조각 병합 성공.총 복원 행(Rows): {len(device_db)}")
+    print(f"조각 병합 성공! 총 복원 행(Rows): {len(device_db)}")
 else:
     ORIGINAL_CSV = DATA_DIR / "implantable_device_master_cui.csv"
     if ORIGINAL_CSV.exists():
@@ -57,13 +57,13 @@ device_db["combined_anchor"] = (
     device_db["productCodeName"] + " " +
     device_db["normalized_device"] + " " +
     device_db["companyName"]
-).str.lower().str.replace(r'\s+', ' ', regex=True).str.strip()
+).str.lower().str.replace(r'[^a-zA-Z0-9가-힣\s]', ' ', regex=True).str.replace(r'\s+', ' ', regex=True).str.strip()
 
 def calculate_mri_priority(status):
     st_lower = str(status).lower()
     if not st_lower or "labeling does not" in st_lower or "unknown" in st_lower:
-        return 1  
-    return 0 
+        return 1
+    return 0
 
 device_db["mri_priority"] = device_db["MRISafetyStatus"].apply(calculate_mri_priority)
 
@@ -104,15 +104,32 @@ def resolve_device_by_product(device_json):
             device["similarity_score"] = 0.0
             continue
 
-        result = process.extractOne(search_query, compound_list, scorer=fuzz.token_set_ratio)
+        results = process.extract(search_query, compound_list, scorer=fuzz.token_set_ratio, limit=5)
         
-        if result and result[1] >= 55:  
-            matched_anchor, score = result[0], result[1]
-            best_row = compound_lookup.get(matched_anchor)
-            fill_device_info(device, best_row, "COMPOUND_FUZZY", score)
-        else:
-            device["resolve_method"] = "UNRESOLVED"
-            device["similarity_score"] = round(float(result[1]), 1) if result else 0.0
+        if results:
+            valid_matches = [r for r in results if r[1] >= 55]
+            
+            if valid_matches:
+                best_row = None
+                best_raw_score = 0
+                max_effective_score = -1
+                
+                for matched_anchor, score, _ in valid_matches:
+                    row = compound_lookup.get(matched_anchor)
+                    mri_bonus = 15 if row.get("mri_priority") == 0 else 0
+                    effective_score = score + mri_bonus
+                    
+                    if effective_score > max_effective_score:
+                        max_effective_score = effective_score
+                        best_raw_score = score
+                        best_row = row
+                
+                if best_row is not None:
+                    fill_device_info(device, best_row, "COMPOUND_RERANKED", best_raw_score)
+                    continue
+
+        device["resolve_method"] = "UNRESOLVED"
+        device["similarity_score"] = round(float(results[0][1]), 1) if results else 0.0
 
     for device in devices:
         loc = str(device.get("implant_location", "")).strip().lower()
