@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 import pandas as pd
 from rapidfuzz import fuzz, process
@@ -26,12 +27,12 @@ for i in range(15):
 
 if chunk_list:
     device_db = pd.concat(chunk_list, ignore_index=True)
-    print(f"조각 병합 성공! 총 복원 행(Rows): {len(device_db)}")
+    print(f"조각 병합 성공.총 복원 행(Rows): {len(device_db)}")
 else:
     ORIGINAL_CSV = DATA_DIR / "implantable_device_master_cui.csv"
     if ORIGINAL_CSV.exists():
         device_db = pd.read_csv(str(ORIGINAL_CSV), dtype=str, low_memory=False)
-        print(f"원본 파일 직접 로드 성공! 행(Rows): {len(device_db)}")
+        print(f"원본 파일 직접 로드 성공. 행(Rows): {len(device_db)}")
     else:
         raise FileNotFoundError(
             f"데이터 조각(master_part_*.csv) 또는 원본 파일이 경로에 존재하지 않습니다: {DATA_DIR}"
@@ -44,47 +45,33 @@ def clean_text(text):
     return str(text).lower().strip()
 
 
-target_cols = ["productCodeName", "brandName", "normalized_device", "MRISafetyStatus"]
+target_cols = ["productCodeName", "brandName", "normalized_device", "MRISafetyStatus", "companyName"]
 for col in target_cols:
     if col in device_db.columns:
         device_db[col] = device_db[col].fillna("").astype(str).str.strip()
+    else:
+        device_db[col] = ""
 
+device_db["combined_anchor"] = (
+    device_db["brandName"] + " " +
+    device_db["productCodeName"] + " " +
+    device_db["normalized_device"] + " " +
+    device_db["companyName"]
+).str.lower().str.replace(r'\s+', ' ', regex=True).str.strip()
 
-def create_lookup_and_list(df, col_name):
-    if col_name in df.columns:
-        valid_df = df[df[col_name] != ""].drop_duplicates(subset=[col_name])
-        lookup_dict = dict(
-            zip(valid_df[col_name], valid_df.to_dict(orient="records"))
-        )
-        unique_list = list(lookup_dict.keys())
-        return lookup_dict, unique_list
-    return {}, []
+def calculate_mri_priority(status):
+    st_lower = str(status).lower()
+    if not st_lower or "labeling does not" in st_lower or "unknown" in st_lower:
+        return 1  
+    return 0 
 
+device_db["mri_priority"] = device_db["MRISafetyStatus"].apply(calculate_mri_priority)
 
-product_lookup, product_list = create_lookup_and_list(
-    device_db, "productCodeName"
-)
-brand_lookup, brand_list = create_lookup_and_list(device_db, "brandName")
-normalized_lookup, normalized_list = create_lookup_and_list(
-    device_db, "normalized_device"
-)
+device_db = device_db.sort_values(by=["combined_anchor", "mri_priority"])
+valid_db = device_db[device_db["combined_anchor"] != ""].drop_duplicates(subset=["combined_anchor"], keep="first")
 
-
-def build_candidates(device_name, canonical_name, preferred_name, synonyms):
-    candidates = []
-    for term in [canonical_name, preferred_name, device_name]:
-        if not term:
-            continue
-        term = clean_text(term)
-        if term not in candidates:
-            candidates.append(term)
-
-    if isinstance(synonyms, list):
-        for syn in synonyms:
-            syn = clean_text(syn)
-            if syn and syn not in candidates:
-                candidates.append(syn)
-    return candidates
+compound_lookup = dict(zip(valid_db["combined_anchor"], valid_db.to_dict(orient="records")))
+compound_list = list(compound_lookup.keys())
 
 
 def fill_device_info(device, row, method, score):
@@ -93,16 +80,10 @@ def fill_device_info(device, row, method, score):
     device["manufacturer"] = row.get("companyName", "")
     device["brand_name"] = row.get("brandName", "")
     device["device_description"] = row.get("productCodeName", "")
-    device["MRISafetyStatus"] = row.get("MRISafetyStatus", "")
+    device["MRISafetyStatus"] = row.get("MRISafetyStatus", "Unknown")
 
     device["resolve_method"] = method
     device["similarity_score"] = round(float(score), 1)
-
-
-def get_best_match(candidate, choices):
-    if not candidate or not choices:
-        return None
-    return process.extractOne(candidate, choices, scorer=fuzz.token_set_ratio)
 
 
 def resolve_device_by_product(device_json):
@@ -112,83 +93,59 @@ def resolve_device_by_product(device_json):
     devices = device_json.get("devices", [])
 
     for device in devices:
-        device_name = clean_text(device.get("device_name", ""))
-        canonical_name = clean_text(device.get("canonical_device_name", ""))
-        preferred_name = clean_text(device.get("preferred_name", ""))
-        synonyms = device.get("synonyms", [])
+        d_name = clean_text(device.get("device_name", ""))
+        c_name = clean_text(device.get("canonical_device_name", ""))
+        p_name = clean_text(device.get("preferred_name", ""))
+        s_text = clean_text(device.get("supporting_text", ""))
+        
+        search_query = f"{d_name} {c_name} {p_name} {s_text}".strip()
+        if not search_query or not compound_list:
+            device["resolve_method"] = "UNRESOLVED"
+            device["similarity_score"] = 0.0
+            continue
 
-        candidates = build_candidates(
-            device_name, canonical_name, preferred_name, synonyms
-        )
-
-        best_row = None
-        best_score = 0
-        best_method = "UNRESOLVED"
-
-        if product_list:
-            for candidate in candidates:
-                result = get_best_match(candidate, product_list)
-                if result is None:
-                    continue
-
-                matched_text, score = result[0], result[1]
-                if score > best_score:
-                    best_row = product_lookup.get(matched_text)
-                    best_score = score
-                    best_method = "PRODUCTCODE"
-
-        if best_score < 80 and brand_list:
-            for candidate in candidates:
-                result = get_best_match(candidate, brand_list)
-                if result is None:
-                    continue
-
-                matched_text, score = result[0], result[1]
-                if score > best_score:
-                    best_row = brand_lookup.get(matched_text)
-                    best_score = score
-                    best_method = "BRAND"
-
-        if best_score < 80 and normalized_list:
-            for candidate in candidates:
-                result = get_best_match(candidate, normalized_list)
-                if result is None:
-                    continue
-
-                matched_text, score = result[0], result[1]
-                if score > best_score:
-                    best_row = normalized_lookup.get(matched_text)
-                    best_score = score
-                    best_method = "NORMALIZED"
-
-        if best_row is not None and best_score >= 70:
-            fill_device_info(device, best_row, best_method, best_score)
+        result = process.extractOne(search_query, compound_list, scorer=fuzz.token_set_ratio)
+        
+        if result and result[1] >= 55:  
+            matched_anchor, score = result[0], result[1]
+            best_row = compound_lookup.get(matched_anchor)
+            fill_device_info(device, best_row, "COMPOUND_FUZZY", score)
         else:
             device["resolve_method"] = "UNRESOLVED"
-            device["similarity_score"] = round(float(best_score), 1)
-
+            device["similarity_score"] = round(float(result[1]), 1) if result else 0.0
 
     for device in devices:
         loc = str(device.get("implant_location", "")).strip().lower()
         name = str(device.get("device_name", "")).strip().lower()
         canon = str(device.get("canonical_device_name", "")).strip().lower()
+        pref = str(device.get("preferred_name", "")).strip().lower()
         
-        if any(kw in loc or kw in name or kw in canon for kw in ["heart", "ventricle", "apex", "atrial", "pacer", "pocket", "sigma", "pectoral", "chest", "pacemaker", "cardiac lead"]):
+        combined_loc_text = f"{loc} {name} {canon} {pref}"
+        
+        if any(kw in combined_loc_text for kw in ["heart", "ventricle", "apex", "atrial", "pacer", "pocket", "sigma", "pectoral", "chest", "pacemaker", "cardiac lead", "conduit", "fenestration", "contegra"]):
             device["implant_location"] = "Heart"
             continue
             
-        if any(kw in loc or kw in name or kw in canon for kw in ["hip", "pelvis", "femoral", "acetabular", "arthroplasty", "coaxial", "ilium"]):
-            if "left" in loc or "lt" in loc or "left" in name:
+        if any(kw in combined_loc_text for kw in ["hip", "pelvis", "femoral", "acetabular", "arthroplasty", "coaxial", "ilium", "screw", "arthrex", "fixation"]):
+            if "left" in combined_loc_text or "lt" in combined_loc_text:
                 device["implant_location"] = "Left Pelvis (Femoral Head)"
             else:
                 device["implant_location"] = "Right Pelvis (Femoral Head)"
             continue
 
-        if any(kw in loc or kw in name or kw in canon for kw in ["knee", "patella", "tibia", "tkr", "tka"]):
-            if "left" in loc or "lt" in loc or "left" in name:
+        if any(kw in combined_loc_text for kw in ["knee", "patella", "tibia", "tkr", "tka"]):
+            if "left" in combined_loc_text or "lt" in combined_loc_text:
                 device["implant_location"] = "Left Knee"
             else:
                 device["implant_location"] = "Right Knee"
+            continue
+
+        if any(kw in combined_loc_text for kw in ["brain", "hearing", "active", "middle ear", "cochlear", "shunt", "aesculap"]):
+            device["implant_location"] = "Brain"
+            continue
+
+        if any(kw in combined_loc_text for kw in ["advance", "mesh", "biodesign", "abdomen", "urinary"]):
+            device["implant_location"] = "Abdomen"
             continue
 
     return device_json
